@@ -3,7 +3,7 @@
     "description": "Extra fields package, simple, extensible and powerful extra fields implementation for Laravel.",
     "type": "php",
     "minimum-stability": "stable",
-    "license": "proprietary",
+    "license": "MIT",
     "authors": [
         {
             "name": "HoanXuanMai",
@@ -23,9 +23,17 @@
             "HXM\\ExtraField\\": "src/"
         }
     },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "HXM\\ExtraField\\ExtraFiledServiceProvider"
+            ],
+        }
+    },
     "require": {
         "php": ">=7",
-        "laravel/framework": ">=5"
+        "laravel/framework": ">=5",
+        "hxm/enum": "^1.0"
     }
 }
 

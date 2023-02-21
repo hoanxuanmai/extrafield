@@ -32,5 +32,8 @@ return [
     ],
     'enums' => [
 //        \App\Models\Demo::class => new \App\Enums\DemoExtraFieldTypeEnums(),
+    ],
+    'valueProcessions' => [
+//        \App\Models\Demo::class => new \App\Enums\DemoExtraValueProcessValue(),
     ]
 ];

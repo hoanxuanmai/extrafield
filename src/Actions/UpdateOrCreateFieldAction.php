@@ -11,6 +11,7 @@ use HXM\ExtraField\Contracts\CanMakeExtraFieldInterface;
 use HXM\ExtraField\Contracts\ExtraFieldTypeEnumInterface;
 use HXM\ExtraField\Exceptions\CanNotMakeExtraFieldException;
 use HXM\ExtraField\ExtraField;
+use Illuminate\Contracts\Translation\Translator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -28,6 +29,7 @@ class UpdateOrCreateFieldAction
     protected CanMakeExtraFieldInterface $target;
     protected ExtraFieldTypeEnumInterface $enumInstance;
     protected Collection $data;
+    protected ?Translator $translator;
 
     function handle(Model $target, Request $request)
     {
@@ -132,6 +134,14 @@ class UpdateOrCreateFieldAction
             }
         }
     }
+    protected function replaceAttributePlaceholder($message, $value)
+    {
+        return str_replace(
+            [':attribute', ':ATTRIBUTE', ':Attribute'],
+            [$value, Str::upper($value), Str::ucfirst($value)],
+            $message
+        );
+    }
 
     function rules()
     {
@@ -140,7 +150,7 @@ class UpdateOrCreateFieldAction
                 'sometimes',
                 function ($attribute, $value, $fail) {
                     if ($value && !$this->updateInstance) {
-                        $fail('The '.$attribute.' is invalid.');
+                        $fail($this->replaceAttributePlaceholder($this->translator->get('validation.exists'), $attribute));
                     }
                 }
             ],
@@ -152,7 +162,7 @@ class UpdateOrCreateFieldAction
                     ->where('parentId', $this->get('parentId', 0))
                     ->whereNot('id', $this->get('id', 0))
             ],
-            'label' => 'required|alpha_num',
+            'label' => 'required|string',
             'placeholder' => 'sometimes',
             'type' => ['required', $this->enumInstance::getRule()],
             'required' => 'sometimes|boolean',
@@ -163,7 +173,7 @@ class UpdateOrCreateFieldAction
         if ($this->get('parentId')) {
             $rules['parentId'] = function ($attribute, $value, $fail) {
                 if (!$this->parentInstance) {
-                    $fail('The '.$attribute.' is invalid.');
+                    $fail($this->replaceAttributePlaceholder($this->translator->get('validation.exists'), $attribute));
                 }
             };
         }
@@ -183,21 +193,21 @@ class UpdateOrCreateFieldAction
                     'sometimes',
                     function ($attribute, $value, $fail) {
                         if ($value && ! $this->get('id')) {
-                            return $fail('The parent of '.$attribute.' must have a Id.');
+                            return $fail($this->replaceAttributePlaceholder($this->translator->get('validation.required'), 'Id'));
                         }
                     },
                 ],
                 'fields.*.label' => [
-                    'required', 'alpha_num',
+                    'required', 'string',
                     function ($attribute, $value, $fail) {
-                        $value = Str::slug($value, '_');
+                        $valueSlug = 'field_'.Str::slug($value, '_');
                         if (!isset($this->cacheUniqueSlugs['fields'])) {
                             $this->cacheUniqueSlugs['fields'] = [];
                         }
-                        if (in_array($value, $this->cacheUniqueSlugs['fields'])) {
-                            $fail('The '.$attribute.' exist in list.');
+                        if (in_array($valueSlug, $this->cacheUniqueSlugs['fields'])) {
+                            $fail($this->replaceAttributePlaceholder($this->translator->get('validation.unique'), $value));
                         } else {
-                            $this->cacheUniqueSlugs['fields'][] = $value;
+                            $this->cacheUniqueSlugs['fields'][] = $valueSlug;
                         }
                     }
                 ],
@@ -221,21 +231,21 @@ class UpdateOrCreateFieldAction
                 'sometimes',
                 function ($attribute, $value, $fail) {
                     if ($value && ! $this->get('id')) {
-                        return $fail('The parent of '.$attribute.' must have a Id.');
+                        return $fail($this->replaceAttributePlaceholder($this->translator->get('validation.required'), $attribute));
                     }
                 },
             ],
             $preKey."options.*.label" => [
-                'required', 'alpha_num',
+                'required', 'string',
                 function ($attribute, $value, $fail) use($preKey) {
-                    $value = Str::slug($value, '_');
+                    $valueSlug = 'option_'.Str::slug($value, '_');
                     if (!isset($this->cacheUniqueSlugs[$preKey.'options'])) {
                         $this->cacheUniqueSlugs[$preKey.'options'] = [];
                     }
-                    if (in_array($value, $this->cacheUniqueSlugs[$preKey.'options'])) {
-                        $fail('The '.$attribute.' exist in list.');
+                    if (in_array($valueSlug, $this->cacheUniqueSlugs[$preKey.'options'])) {
+                        $fail($this->replaceAttributePlaceholder($this->translator->get('validation.unique'), $value));
                     } else {
-                        $this->cacheUniqueSlugs[$preKey.'options'][] = $value;
+                        $this->cacheUniqueSlugs[$preKey.'options'][] = $valueSlug;
                     }
                 }
             ]
@@ -253,6 +263,7 @@ class UpdateOrCreateFieldAction
 
     function prepareForValidation()
     {
+        $this->translator = app(Translator::class);
         $ids = array_filter([$this->get('id'), $this->get('parentId')]);
         $preLoad = collect();
         if (count($ids)) {

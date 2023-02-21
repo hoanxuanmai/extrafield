@@ -7,6 +7,7 @@
 namespace HXM\ExtraField;
 
 use HXM\ExtraField\Contracts\CanMakeExtraFieldInterface;
+use HXM\ExtraField\Contracts\ExtraFieldTypeEnumHasValidationInterface;
 use HXM\ExtraField\Contracts\ExtraFieldTypeEnumInterface;
 use HXM\ExtraField\Models\ExtraField;
 use HXM\ExtraField\Services\ExtraFieldService;
@@ -28,7 +29,7 @@ class ExtraFieldValueValidation
      */
     public function __construct(CanMakeExtraFieldInterface $extraFieldTypeInstance, array $data, string $errorBag = 'default')
     {
-        $this->extraFieldTypeInstance = $extraFieldTypeInstance;
+        $this->extraFieldTypeInstance = $extraFieldTypeInstance->getExtraFieldTargetTypeInstance();
         $this->extraFieldTypeEnumInstance = \HXM\ExtraField\ExtraField::getEnumInstance(get_class($extraFieldTypeInstance));
         $this->dataInput = $data;
         $this->errorBag = $errorBag;
@@ -87,25 +88,29 @@ class ExtraFieldValueValidation
         } else {
             $resolved[] = $field->id;
         }
+        $attribute = $childOfArray ? $field->parentInput . '.*.' . $field->slug : $field->inputName;
 
         if ($field->required) {
-            $rules[$childOfArray ? $field->parentInput . '.*.' . $field->slug : $field->inputName] = ['required'];
+            $rules[$attribute] = ['required'];
         } else {
-            $rules[$childOfArray ? $field->parentInput . '.*.' . $field->slug : $field->inputName] = ['sometimes'];
+            $rules[$attribute] = ['sometimes'];
         }
 
         if ($this->extraFieldTypeEnumInstance::requireHasOptions($type)) {
-            $rules[$childOfArray ? $field->parentInput . '.*.' . $field->slug : $field->inputName][] = 'in:'.$field->options->implode('id', ',');
+            $rules[$attribute][] = 'in:'.$field->options->implode('id', ',');
         }
 
         if ($this->extraFieldTypeEnumInstance::inputRequestIsMultiple($type)) {
-            $rules[$childOfArray ? $field->parentInput . '.*.' . $field->slug : $field->inputName][] = 'array';
-            $rules[$childOfArray ? $field->parentInput . '.*.' . $field->slug : $field->inputName][] = 'min:1';
+            $rules[$attribute][] = 'array';
+            $rules[$attribute][] = 'min:1';
         }
         if ($this->extraFieldTypeEnumInstance::requireHasFields($type)) {
             $field->fields->each(function($childField) use (&$rules, $field, $childOfArray, &$resolved) {
                 $this->addFieldRules($childField, $rules, $resolved, true);
             });
+        }
+        if ($this->extraFieldTypeEnumInstance instanceof ExtraFieldTypeEnumHasValidationInterface) {
+            $rules[$attribute] = $this->extraFieldTypeEnumInstance::makeRuleByType($type, $rules[$attribute]);
         }
     }
 
