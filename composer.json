@@ -1,0 +1,31 @@
+{
+    "name": "hxm/extrafield",
+    "description": "Extra fields package, simple, extensible and powerful extra fields implementation for Laravel.",
+    "type": "php",
+    "minimum-stability": "stable",
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "HoanXuanMai",
+            "email": "hoanxuanmai@gmail.com"
+        }
+    ],
+    "keywords": [
+        "hxm",
+        "extrafield",
+        "laravel",
+        "package",
+        "validation",
+        "rule"
+    ],
+    "autoload": {
+        "psr-4": {
+            "HXM\\ExtraField\\": "src/"
+        }
+    },
+    "require": {
+        "php": ">=7",
+        "laravel/framework": ">=5"
+    }
+}
+
