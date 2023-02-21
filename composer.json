@@ -27,7 +27,7 @@
         "laravel": {
             "providers": [
                 "HXM\\ExtraField\\ExtraFiledServiceProvider"
-            ],
+            ]
         }
     },
     "require": {
