@@ -8,6 +8,8 @@ use HXM\ExtraField\Enums\ExtraFieldTypeEnums;
 use HXM\ExtraField\Services\ExtraValueProcessValue;
 
 return [
+    'cache' => true,
+    'lifetime' => 3600,
     'tables' => [
         'fields' => 'extra_fields',
         'options' => 'extra_field_options',

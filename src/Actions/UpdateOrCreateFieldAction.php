@@ -11,6 +11,7 @@ use HXM\ExtraField\Contracts\CanMakeExtraFieldInterface;
 use HXM\ExtraField\Contracts\ExtraFieldTypeEnumInterface;
 use HXM\ExtraField\Exceptions\CanNotMakeExtraFieldException;
 use HXM\ExtraField\ExtraField;
+use HXM\ExtraField\Services\ExtraFieldService;
 use Illuminate\Contracts\Translation\Translator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -37,7 +38,7 @@ class UpdateOrCreateFieldAction
             throw new CanNotMakeExtraFieldException(get_class($target));
         }
         $this->data = collect($request->all());
-        $this->target = $target;
+        $this->target = $target->getExtraFieldTargetTypeInstance();
         $this->enumInstance = ExtraField::getEnumInstance($target->getMorphClass());
         $this->merge([
             'target_id' =>  $target instanceof CanMakeExtraFieldByInstanceInterface ? $this->target->getKey() : 0,
@@ -48,7 +49,10 @@ class UpdateOrCreateFieldAction
         if ($validator->fails()) {
             throw ValidationException::withMessages($validator->errors()->toArray());
         } else {
-            return $this->updateOrSave();
+            $field = $this->updateOrSave();
+            ExtraFieldService::clearCache($this->target->newInstance());
+            ExtraFieldService::clearCache($this->target);
+            return $field;
         }
 
     }

@@ -6,6 +6,7 @@
 
 namespace HXM\ExtraField;
 
+use HXM\ExtraField\Services\ExtraFieldService;
 use Illuminate\Support\ServiceProvider;
 
 class ExtraFiledServiceProvider extends ServiceProvider
@@ -20,6 +21,10 @@ class ExtraFiledServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__ . '/../database/migrations' => database_path('migrations')
         ], 'extra_field:migration');
+
+        if (!config('extra_field.cache', true)) {
+            ExtraFieldService::$useCache = false;
+        }
     }
 
     function register()

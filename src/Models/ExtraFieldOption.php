@@ -24,8 +24,12 @@ class ExtraFieldOption extends Model
 
     static function booted()
     {
-        static::creating(function (self $model) {if (is_numeric($model->label))
-            $model->slug || $model->slug = is_numeric($model->label) ? 'option_' . Str::slug($model->label, "_") : Str::slug($model->label, "_");
+        static::creating(function (self $model) {
+            $slug = Str::slug($model->label, "_");
+            if (is_numeric($slug)) {
+                $slug = 'option_' . $slug;
+            }
+            $model->slug = $slug;
         });
     }
 }
