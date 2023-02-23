@@ -17,13 +17,13 @@ trait AutoValidationAndSaveExtraFieldValue
         static::saving(function(CanAccessExtraFieldValueInterface $model) {
             $validator = new ExtraFieldValueValidation($model->getExtraFieldTargetTypeInstance(), request()->all());
             $validator->validate();
-            app()->bind(static::class.'ExtraFieldValueValidation_'.$model->getKey(), function() use ($validator){
+            app()->bind(static::class.'ExtraFieldValueValidation', function() use ($validator){
                 return $validator;
             });
         });
         static::saved(function(CanAccessExtraFieldValueInterface $model) {
             $service = new SaveExtraFieldValueForTargetAction($model);
-            $service->handle(app(static::class.'ExtraFieldValueValidation_'.$model->getKey()));
+            $service->handle(app(static::class.'ExtraFieldValueValidation'));
         });
     }
 }

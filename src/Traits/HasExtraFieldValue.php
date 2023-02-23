@@ -47,25 +47,26 @@ trait HasExtraFieldValue
     {
         if (!isset(static::$cacheExtraValues[$this->getKey()])) {
             static::$cacheExtraValues[$this->getKey()] = [];
-        }
-        $dataList = [];
-        if ($this->relations['extraValues'] ?? null && $this->relations['extraValues'] instanceof Collection && $this->relations['extraValues']->count()) {
+            $dataList = [];
+            if ($this->relations['extraValues'] ?? null && $this->relations['extraValues'] instanceof Collection && $this->relations['extraValues']->count()) {
 
-            $this->relations['extraValues']->each(function (ExtraFieldValue $data) use(&$dataList) {
-                if (!is_null($data->row)) {
-                    $dataList[] = $data->parentInput;
-                    Arr::set(static::$cacheExtraValues[$this->getKey()], "$data->parentInput.$data->row.$data->slug", $data->value);
-                } else {
-                    Arr::set(static::$cacheExtraValues[$this->getKey()], $data->inputName, $data->value);
-                }
-            });
+                $this->relations['extraValues']->each(function (ExtraFieldValue $data) use(&$dataList) {
+                    if (!is_null($data->row)) {
+                        $dataList[] = $data->parentInput;
+                        Arr::set(static::$cacheExtraValues[$this->getKey()], "$data->parentInput.$data->row.$data->slug", $data->value);
+                    } else {
+                        Arr::set(static::$cacheExtraValues[$this->getKey()], $data->inputName, $data->value);
+                    }
+                });
+            }
+            foreach (array_unique($dataList) as $key) {
+                $newValue = collect(Arr::get(static::$cacheExtraValues[$this->getKey()], $key))->values()->toArray();
+                Arr::set(static::$cacheExtraValues[$this->getKey()], $key, $newValue);
+            }
         }
-        foreach (array_unique($dataList) as $key) {
-            $newValue = collect(Arr::get(static::$cacheExtraValues[$this->getKey()], $key))->values()->toArray();
-            Arr::set(static::$cacheExtraValues[$this->getKey()], $key, $newValue);
-        }
+
         $modelValues = parent::toArray();
-
-        return array_merge(static::$cacheExtraValues[$this->getKey()], $modelValues);
+        $wrap = config('extra_field.wrap', null);
+        return array_merge(empty($wrap) ? static::$cacheExtraValues[$this->getKey()] : [$wrap => static::$cacheExtraValues[$this->getKey()]], $modelValues);
     }
 }

@@ -31,7 +31,7 @@ class ExtraFieldValueValidation
     {
         $this->extraFieldTypeInstance = $extraFieldTypeInstance->getExtraFieldTargetTypeInstance();
         $this->extraFieldTypeEnumInstance = \HXM\ExtraField\ExtraField::getEnumInstance(get_class($extraFieldTypeInstance));
-        $this->dataInput = $data;
+        $this->dataInput = empty(config('extra_field.wrap')) ? $data : $data[config('extra_field.wrap')] ?? [];
         $this->errorBag = $errorBag;
     }
 

@@ -233,7 +233,7 @@ class UpdateOrCreateFieldAction
             ],
             $preKey."options.*.id" => [
                 'sometimes',
-                function ($attribute, $value, $fail) {
+                function ($attribute, $value, $fail) use($preKey) {
                     if ($value && ! $this->get('id')) {
                         return $fail($this->replaceAttributePlaceholder($this->translator->get('validation.required'), $attribute));
                     }
@@ -243,13 +243,14 @@ class UpdateOrCreateFieldAction
                 'required', 'string',
                 function ($attribute, $value, $fail) use($preKey) {
                     $valueSlug = 'option_'.Str::slug($value, '_');
-                    if (!isset($this->cacheUniqueSlugs[$preKey.'options'])) {
-                        $this->cacheUniqueSlugs[$preKey.'options'] = [];
+                    $cacheKey = preg_replace('/\.\d\.label$/', '', $attribute);
+                    if (!isset($this->cacheUniqueSlugs[$cacheKey])) {
+                        $this->cacheUniqueSlugs[$cacheKey] = [];
                     }
-                    if (in_array($valueSlug, $this->cacheUniqueSlugs[$preKey.'options'])) {
+                    if (in_array($valueSlug, $this->cacheUniqueSlugs[$cacheKey])) {
                         $fail($this->replaceAttributePlaceholder($this->translator->get('validation.unique'), $value));
                     } else {
-                        $this->cacheUniqueSlugs[$preKey.'options'][] = $valueSlug;
+                        $this->cacheUniqueSlugs[$cacheKey][] = $valueSlug;
                     }
                 }
             ]

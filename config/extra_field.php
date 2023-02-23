@@ -10,6 +10,7 @@ use HXM\ExtraField\Services\ExtraValueProcessValue;
 return [
     'cache' => true,
     'lifetime' => 3600,
+    'wrap' => null,
     'tables' => [
         'fields' => 'extra_fields',
         'options' => 'extra_field_options',
