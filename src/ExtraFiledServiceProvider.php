@@ -25,12 +25,13 @@ class ExtraFiledServiceProvider extends ServiceProvider
         if (!config('extra_field.cache', true)) {
             ExtraFieldService::$useCache = false;
         }
+        if (!ExtraField::$ignoreMigration) {
+            $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        }
     }
 
     function register()
     {
-        if (!ExtraField::$ignoreMigration)
-            $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
         $this->mergeConfigFrom(__DIR__ . '/../config/extra_field.php', 'extra_field');
         $this->applyConfigEnumsInstance();
