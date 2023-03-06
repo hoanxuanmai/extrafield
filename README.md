@@ -7,7 +7,7 @@
 
 
 
-#### This is a respository developed to add extra fields to models on Laravel projects.
+#### This is a respository developed to add extra fields to models on Laravel projects.The hxm/extrafield package provides a simple and flexible way to add custom fields to your Laravel Eloquent models. With this package, you can easily define additional fields to store any type of data that you need, such as metadata, settings, or preferences. The extra fields are seamlessly integrated with the model attributes, allowing you to access and modify them using the same syntax as regular attributes. Moreover, the package offers convenient features such as default values, validation rules, and automatic casting to various data types. Whether you are building a small application or a large-scale system, hxm/extrafield can help you extend your models with ease and efficiency.
 #### Instead of you needing to create additional columns on the existing database structure, you can simply use this respository.
 
 

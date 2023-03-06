@@ -6,6 +6,7 @@
 
 namespace HXM\ExtraField;
 
+use HXM\ExtraField\Console\ExtraFieldInstallCommand;
 use HXM\ExtraField\Services\ExtraFieldService;
 use Illuminate\Support\ServiceProvider;
 
@@ -28,6 +29,7 @@ class ExtraFiledServiceProvider extends ServiceProvider
         if (!ExtraField::$ignoreMigration) {
             $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         }
+        $this->commands([ExtraFieldInstallCommand::class]);
     }
 
     function register()

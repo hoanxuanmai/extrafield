@@ -10,13 +10,16 @@ use HXM\ExtraField\Contracts\CanMakeExtraFieldInterface;
 use HXM\ExtraField\Contracts\ExtraFieldTypeEnumInterface;
 use HXM\ExtraField\Enums\ExtraFieldTypeEnums;
 use HXM\ExtraField\Models\ExtraFieldValue;
+use HXM\ExtraField\Models\PrivateExtraField;
+use HXM\ExtraField\Models\PrivateExtraFieldValue;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 
-trait HasExtraFieldValue
+trait HasPrivateExtraFieldValue
 {
     static protected bool $withExtraValues = true;
     protected static array $cacheExtraValues = [];
@@ -28,21 +31,18 @@ trait HasExtraFieldValue
                 return $query->with('extraValues');
             });
         }
-//
-//        static::saving(function(self $model) {
-//            if (static::$cacheExtraValues[$model->getKey()]) {
-//                $keys = empty(config('extra_field.wrap', null)) ? array_keys(static::$cacheExtraValues[$model->getKey()]) : config('extra_field.wrap');
-//
-//                foreach ($keys as $key) {
-//                    unset($model->attributes[$key]);
-//                }
-//                $model->syncOriginal();
-//            }
-//        });
     }
     function extraValues(): Relation
     {
-        return $this->morphMany(ExtraFieldValue::class, 'target');
+        $table = Str::singular($this->getExtraFieldTargetTypeInstance()->getTable()).'_extra_field_values';
+        /** @var PrivateExtraFieldValue $instance */
+        $instance = $this->newRelatedInstance(PrivateExtraFieldValue::class);
+        $instance->setTable($table);
+
+        $foreignKey = 'target_id';
+
+        $localKey = 'extraFieldTargetId';
+        return $this->newMorphMany($instance->newQuery(), $this, $table.'.target_type', $table.'.target_id', $this->getKeyName());
     }
 
     function getExtraFieldTargetTypeInstance(): CanMakeExtraFieldInterface
@@ -55,24 +55,14 @@ trait HasExtraFieldValue
         return new ExtraFieldTypeEnums();
     }
 
-    public function newCollection(array $models = [])
-    {
-        return (new Collection($models))->map(function(self $model) {
-            if ($model->relationLoaded('extraValues')) {
-                return $model->makeExtraFieldValueAttributes();
-            }
-            return $model;
-        });
-    }
-
-    function makeExtraFieldValueAttributes()
+    public function toArray()
     {
         if (!isset(static::$cacheExtraValues[$this->getKey()])) {
             static::$cacheExtraValues[$this->getKey()] = [];
             $dataList = [];
             if ($this->relations['extraValues'] ?? null && $this->relations['extraValues'] instanceof Collection && $this->relations['extraValues']->count()) {
 
-                $this->relations['extraValues']->each(function (ExtraFieldValue $data) use(&$dataList) {
+                $this->relations['extraValues']->each(function (PrivateExtraFieldValue $data) use(&$dataList) {
                     if (!is_null($data->row)) {
                         $dataList[] = $data->parentInput;
                         Arr::set(static::$cacheExtraValues[$this->getKey()], "$data->parentInput.$data->row.$data->slug", $data->value);
@@ -86,9 +76,9 @@ trait HasExtraFieldValue
                 Arr::set(static::$cacheExtraValues[$this->getKey()], $key, $newValue);
             }
         }
+
+        $modelValues = parent::toArray();
         $wrap = config('extra_field.wrap', null);
-        $this->attributes = array_merge(empty($wrap) ? static::$cacheExtraValues[$this->getKey()] : [$wrap => static::$cacheExtraValues[$this->getKey()]], $this->attributes);
-        $this->syncOriginal();
-        return $this;
+        return array_merge(empty($wrap) ? static::$cacheExtraValues[$this->getKey()] : [$wrap => static::$cacheExtraValues[$this->getKey()]], $modelValues);
     }
 }

@@ -160,7 +160,7 @@ class UpdateOrCreateFieldAction
             ],
             'slug' => [
                 'required',
-                (new Unique(config('extra_field.tables.fields'), 'slug'))
+                (new Unique($this->target->fields()->getModel()->getTable(), 'slug'))
                     ->where('target_id', $this->get('target_id'))
                     ->where('target_type', $this->get('target_type'))
                     ->where('parentId', $this->get('parentId', 0))

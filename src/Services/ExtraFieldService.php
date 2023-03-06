@@ -23,11 +23,13 @@ class ExtraFieldService
 
     static function getAllFieldsByTypeInstance(CanMakeExtraFieldInterface $hasExtraField): Collection
     {
+        $hasExtraField = $hasExtraField->getExtraFieldTargetTypeInstance();
         [$targetType, $targetId] = static::getTarget($hasExtraField);
         $key = $targetType.$targetId;
+
         if (! (static::$allFieldsByTarget[$key] ?? null)) {
-            static::$allFieldsByTarget[$key] = static::getFromCache('allFieldsByTarget'.$key, function() use ($targetType, $targetId) {
-                return static::buildQueryToGetList($targetType, $targetId)
+            static::$allFieldsByTarget[$key] = static::getFromCache('allFieldsByTarget'.$key, function() use ($hasExtraField, $targetType, $targetId) {
+                return static::buildQueryToGetList($hasExtraField, $targetType, $targetId)
                     ->whereFields()
                     ->get();
             });
@@ -37,12 +39,13 @@ class ExtraFieldService
 
     static function getAllSectionsByTypeInstance(CanMakeExtraFieldInterface $hasExtraField): Collection
     {
+        $hasExtraField = $hasExtraField->getExtraFieldTargetTypeInstance();
         [$targetType, $targetId] = static::getTarget($hasExtraField);
         $key = $targetType.$targetId;
 
         if (! (static::$allSectionsByTarget[$key] ?? null)) {
-            static::$allSectionsByTarget[$key] = static::getFromCache('allSectionsByTarget'.$key, function() use ($targetType, $targetId) {
-                return static::buildQueryToGetList($targetType, $targetId)
+            static::$allSectionsByTarget[$key] = static::getFromCache('allSectionsByTarget'.$key, function() use ($hasExtraField, $targetType, $targetId) {
+                return static::buildQueryToGetList($hasExtraField, $targetType, $targetId)
                     ->whereSections()
                     ->get();
             });
@@ -73,9 +76,9 @@ class ExtraFieldService
         return $callback();
     }
 
-    protected function buildQueryToGetList(string $targetType, ?int $targetId)
+    protected function buildQueryToGetList(CanMakeExtraFieldInterface $canMakeExtraField, string $targetType, ?int $targetId)
     {
-        return ExtraField::where('target_type', $targetType)
+        return $canMakeExtraField->fields()->getModel()->newQuery()->where('target_type', $targetType)
             ->when(is_null($targetId), function($q) use ($targetId) {
                 return $q->where('target_id', '<>', 0);
             }, function($q) use ($targetId) {

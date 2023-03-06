@@ -20,7 +20,7 @@ class ExtraField extends Model
         'target_id',
         'parentId',
         'parentInput',
-        'name',
+        'slug',
         'label',
         'placeholder',
         'type',

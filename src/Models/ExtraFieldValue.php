@@ -29,7 +29,7 @@ class ExtraFieldValue extends Model
 
     function getValueAttribute()
     {
-        return \HXM\ExtraField\ExtraField::getValueProcessionInstance($this->attributes['target_type'] ?? null)
+        return \HXM\ExtraField\ExtraField::getValueProcessionInstance($this->attributes['field_target_type'] ?? null)
             ->getValue($this->attributes['value'] ?? null, $this->attributes['type'] ?? null, $this);
     }
 
@@ -38,6 +38,7 @@ class ExtraFieldValue extends Model
         static::addGlobalScope('joinField', function(Builder $query) {
             return $query->with('options')->leftJoin(config('extra_field.tables.fields').' as extra_field_values_join_field', config('extra_field.tables.values').'.extraFieldId', 'extra_field_values_join_field.id')->select([
                 config('extra_field.tables.values').'.*',
+                'extra_field_values_join_field.target_type as field_target_type',
                 'extra_field_values_join_field.type',
                 'extra_field_values_join_field.slug',
                 'extra_field_values_join_field.parentInput',

@@ -11,6 +11,9 @@ return [
     'cache' => true,
     'lifetime' => 3600,
     'wrap' => null,
+    'private_tables' => [
+
+    ],
     'tables' => [
         'fields' => 'extra_fields',
         'options' => 'extra_field_options',
