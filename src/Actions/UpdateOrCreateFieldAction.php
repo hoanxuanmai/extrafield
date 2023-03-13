@@ -63,9 +63,11 @@ class UpdateOrCreateFieldAction
             $fieldSetting = $this->getUpdateInstance();
             $fieldSetting->update($this->data->only(['name', 'label', 'placeholder', 'required', 'hidden', 'type', 'settings', 'parentInput'])->toArray());
         } else {
+            $dataSave = $this->data->only(['name', 'target_type','target_id', 'label', 'placeholder', 'type', 'required', 'hidden', 'settings', 'parentInput'])->toArray();
+            $dataSave['order'] = $this->getParentInstance()->fields()->count() + 1;
             $fieldSetting = $this->getParentInstance()
                 ->fields()
-                ->create($this->data->only(['name', 'target_type','target_id', 'label', 'placeholder', 'type', 'required', 'hidden', 'settings', 'parentInput'])->toArray());
+                ->create($dataSave);
         }
 
         if ($this->enumInstance::requireHasOptions($fieldSetting->type)) {

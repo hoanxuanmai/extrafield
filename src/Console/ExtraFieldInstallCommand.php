@@ -102,6 +102,7 @@ class ExtraFieldInstallCommand extends Command
                 'placeholder',
                 'type',
                 'required',
+                'order',
                 'hidden',
                 'settings',
             ])) {
@@ -125,6 +126,7 @@ class ExtraFieldInstallCommand extends Command
             $table->string('type');
             $table->boolean('required')->default(true);
             $table->boolean('hidden')->default(false);
+            $table->tinyInteger('order')->default(0);
             $table->json('settings')->nullable();
             $table->timestamps();
             $table->softDeletes();

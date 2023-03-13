@@ -25,7 +25,7 @@ trait HasExtraFieldValue
     {
         if (static::$withExtraValues) {
             static::addGlobalScope('withExtraValues', function(Builder $query){
-                return $query->with('extraValues');
+                return $query->with('extraValues.options');
             });
         }
 //

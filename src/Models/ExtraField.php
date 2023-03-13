@@ -8,6 +8,7 @@ namespace HXM\ExtraField\Models;
 
 use HXM\ExtraField\Contracts\ExtraFieldTypeEnumInterface;
 use HXM\ExtraField\Enums\ExtraFieldTypeEnums;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
@@ -25,6 +26,7 @@ class ExtraField extends Model
         'placeholder',
         'type',
         'required',
+        'order',
         'hidden',
         'settings',
     ];
@@ -82,6 +84,10 @@ class ExtraField extends Model
 
     static function booted()
     {
+        static::addGlobalScope('order', function(Builder $query) {
+            $query->orderBy('order')->orderBy('id');
+        });
+        
         static::creating(function(self $model) {
             $model->target_id || $model->target_id = 0;
             $model->placeholder || $model->label = $model->label;
