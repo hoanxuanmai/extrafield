@@ -13,6 +13,10 @@ use HXM\ExtraField\Services\ExtraValueProcessValue;
 
 class ExtraField
 {
+    static string $dateTimeSaveFormat = 'd/m/Y H:i';
+    static string $inputDateFormat = 'd/m/Y';
+    static string $inputTimeFormat = 'H:i';
+
     static bool $ignoreMigration = false;
 
     protected static array $enumInstances = [];

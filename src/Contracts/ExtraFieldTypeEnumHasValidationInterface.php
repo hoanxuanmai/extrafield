@@ -8,5 +8,5 @@ namespace HXM\ExtraField\Contracts;
 
 interface ExtraFieldTypeEnumHasValidationInterface
 {
-    static function makeRuleByType(string $type, $rules = []): array;
+    static function makeRuleByType(string $type, array $rules = []): array;
 }

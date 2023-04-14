@@ -6,11 +6,12 @@
 namespace HXM\ExtraField\Enums;
 
 use HXM\Enum\Abstracts\EnumBase;
+use HXM\ExtraField\Contracts\ExtraFieldTypeEnumHasValidationInterface;
 use HXM\ExtraField\Contracts\ExtraFieldTypeEnumInterface;
-use HXM\ExtraField\Models\ExtraField;
+use HXM\ExtraField\Models\ExtraField as ExtraFieldModel;
+use HXM\ExtraField\ExtraField;
 
-
-class ExtraFieldTypeEnums extends EnumBase implements ExtraFieldTypeEnumInterface
+class ExtraFieldTypeEnums extends EnumBase implements ExtraFieldTypeEnumInterface, ExtraFieldTypeEnumHasValidationInterface
 {
     const SECTION = 'SECTION';
     const TEXT = 'TEXT';
@@ -92,10 +93,35 @@ class ExtraFieldTypeEnums extends EnumBase implements ExtraFieldTypeEnumInterfac
         return $value == self::REPEATER;
     }
 
-    static function appendToArray(ExtraField $extraField): array
+    static function appendToArray(ExtraFieldModel $extraField): array
     {
         return [
             'component' => static::getComponentByType($extraField->type),
         ];
+    }
+
+    static function makeRuleByType(string $type,array $rules = []): array
+    {
+        switch ($type) {
+            case self::DATE: {
+                $rules = array_merge($rules, [
+                    'date_format:'.ExtraField::$inputDateFormat
+                ]);
+                break;
+            }
+            case self::TIME: {
+                $rules = array_merge($rules, [
+                    'date_format:'.ExtraField::$inputTimeFormat
+                ]);
+                break;
+            }
+            case self::DATETIME: {
+                $rules = array_merge($rules, [
+                    'date_format:'.ExtraField::$inputDateFormat . ' ' .ExtraField::$inputTimeFormat
+                ]);
+                break;
+            }
+        }
+        return $rules;
     }
 }

@@ -11,7 +11,7 @@ use HXM\ExtraField\Models\ExtraFieldValue;
 
 interface ExtraValueProcessValueInterface
 {
-    function getValue($value, $valueType = null, ExtraFieldValue $extraFieldValue);
+    function getValue($value, $valueType, ExtraFieldValue $extraFieldValue);
 
-    function setValue($value, $valueType = null, ExtraField $extraField);
+    function setValue($value, $valueType, ExtraField $extraField);
 }
