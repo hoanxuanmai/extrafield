@@ -80,7 +80,7 @@ class ExtraFieldTypeEnums extends EnumBase implements ExtraFieldTypeEnumInterfac
 
     static function requireHasFields($value) : bool
     {
-        return in_array($value, [self::CLAIMS, self::REPEATER]);
+        return in_array($value, [self::SECTION, self::CLAIMS, self::REPEATER]);
     }
 
     static function inputRequestHasFile($value) : bool
@@ -100,7 +100,7 @@ class ExtraFieldTypeEnums extends EnumBase implements ExtraFieldTypeEnumInterfac
         ];
     }
 
-    static function makeRuleByType(string $type,array $rules = []): array
+    static function makeRuleByType(string $type,array $rules = [], ExtraFieldModel $extraField): array
     {
         switch ($type) {
             case self::DATE: {

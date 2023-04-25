@@ -37,6 +37,17 @@ class ExtraField extends Model
         'hidden' => 'boolean',
     ];
 
+    public static $loadMissingChildren = false;
+
+    function newCollection(array $models = [])
+    {
+        if (static::$loadMissingChildren) {
+            $colection = parent::newCollection($models);
+            return $colection->loadMissing(['fields.options', 'options']);
+        }
+        return parent::newCollection($models);
+    }
+
     protected $appends =  ['inputName', 'title'];
 
     function target(): \Illuminate\Database\Eloquent\Relations\MorphTo
@@ -63,6 +74,7 @@ class ExtraField extends Model
     {
         return $this->attributes['label'];
     }
+
     function scopeWhereSections($query)
     {
         return $query->where('type', ExtraFieldTypeEnums::SECTION);
@@ -71,6 +83,18 @@ class ExtraField extends Model
     function scopeWhereFields($query)
     {
         return $query->where('type','<>', ExtraFieldTypeEnums::SECTION);
+    }
+
+    public function toDefault()
+    {
+        $instance = \HXM\ExtraField\ExtraField::getEnumInstance($this->target_type);
+        if ($instance::requireHasFields($this->type)) {
+            return [$this->slug => $this->fields->mapWithKeys(function(self $model) {
+                return [$model->slug =>$model->toDefault()];
+            })];
+        } else {
+            return [$this->slug => null];
+        }
     }
 
     public function toArray()
@@ -87,7 +111,7 @@ class ExtraField extends Model
         static::addGlobalScope('order', function(Builder $query) {
             $query->orderBy('order')->orderBy('id');
         });
-        
+
         static::creating(function(self $model) {
             $model->target_id || $model->target_id = 0;
             $model->placeholder || $model->label = $model->label;

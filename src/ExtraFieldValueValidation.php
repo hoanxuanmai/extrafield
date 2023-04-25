@@ -10,8 +10,11 @@ use HXM\ExtraField\Contracts\CanMakeExtraFieldInterface;
 use HXM\ExtraField\Contracts\ExtraFieldTypeEnumHasValidationInterface;
 use HXM\ExtraField\Contracts\ExtraFieldTypeEnumInterface;
 use HXM\ExtraField\Models\ExtraField;
+use HXM\ExtraField\Models\ExtraFieldOption;
 use HXM\ExtraField\Services\ExtraFieldService;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rules\RequiredIf;
 use Illuminate\Validation\ValidationException;
 
 class ExtraFieldValueValidation
@@ -70,6 +73,7 @@ class ExtraFieldValueValidation
             });
         return $rules;
     }
+
     public function getAttributesByType(&$attributes = [])
     {
         $resolved = [];
@@ -78,6 +82,15 @@ class ExtraFieldValueValidation
                 self::addFieldAttributes($field, $attributes, $resolved);
             });
         return $attributes;
+    }
+
+    /**
+     * @param $key
+     * @return array|\ArrayAccess|mixed
+     */
+    protected function input($key = null)
+    {
+        return Arr::get($this->dataInput, $key);
     }
 
     protected function addFieldRules(ExtraField $field, &$rules, &$resolved = [], $childOfArray = false): void
@@ -90,10 +103,33 @@ class ExtraFieldValueValidation
         }
         $attribute = $childOfArray ? $field->parentInput . '.*.' . $field->slug : $field->inputName;
 
-        if ($field->required) {
-            $rules[$attribute] = ['required'];
+        $settings = $field->settings;
+        $requiredIfFieldId = $settings['requiredIfFieldId'] ?? null;
+        $requiredIfOptionIds = $settings['requiredIfOptionIds'] ?? [];
+        $hideIfNotRequired = $settings['hideIfNotRequired'] ?? false;
+
+        /** @var ExtraField $relatedField */
+        if ($requiredIfFieldId
+            && $relatedField = ExtraFieldService::getAllFieldsByTypeInstance($this->extraFieldTypeInstance)->first(function(ExtraField $dt) use ($requiredIfFieldId) {
+                return $dt->getKey() == $requiredIfFieldId;
+            })) {
+            $valueOptions = [];
+            if ($requiredIfOptionIds) {
+                $valueOptions = $relatedField->options->filter(function (ExtraFieldOption $dt) use ($requiredIfOptionIds) {
+                    return in_array($dt->getKey(), $requiredIfOptionIds);
+                })->pluck('id')->toArray();
+            }
+            if ($valueOptions) {
+                $rules[$attribute] = [new RequiredIf(in_array($this->input($relatedField->inputName), $valueOptions))];
+            } else {
+                $rules[$attribute] = $hideIfNotRequired ? ['prohibited'] : ['nullable'];
+            }
         } else {
-            $rules[$attribute] = ['sometimes'];
+            if ($field->required) {
+                $rules[$attribute] = ['required'];
+            } else {
+                $rules[$attribute] = ['nullable'];
+            }
         }
 
         if ($this->extraFieldTypeEnumInstance::requireHasOptions($type)) {
@@ -110,7 +146,7 @@ class ExtraFieldValueValidation
             });
         }
         if ($this->extraFieldTypeEnumInstance instanceof ExtraFieldTypeEnumHasValidationInterface) {
-            $rules[$attribute] = $this->extraFieldTypeEnumInstance::makeRuleByType($type, $rules[$attribute]);
+            $rules[$attribute] = $this->extraFieldTypeEnumInstance::makeRuleByType($type, $rules[$attribute], $field);
         }
     }
 

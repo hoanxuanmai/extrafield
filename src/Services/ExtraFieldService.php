@@ -11,15 +11,43 @@ use HXM\ExtraField\Contracts\CanMakeExtraFieldInterface;
 use HXM\ExtraField\Contracts\ExtraFieldTypeEnumInterface;
 use HXM\ExtraField\Enums\ExtraFieldTypeEnums;
 use HXM\ExtraField\Models\ExtraField;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Collection;
 
 class ExtraFieldService
 {
     static $useCache = true;
     protected static array $allSectionsByTarget = [];
     protected static array $allFieldsByTarget = [];
+    protected static array $constructFieldsByTarget = [];
 
+    static function getConstructFieldsByTypeInstance(CanMakeExtraFieldInterface $hasExtraField): Collection
+    {
+        $hasExtraField = $hasExtraField->getExtraFieldTargetTypeInstance();
+        [$targetType, $targetId] = static::getTarget($hasExtraField);
+        $key = $targetType.$targetId;
+        if (! (static::$constructFieldsByTarget[$key] ?? null)) {
+            static::$constructFieldsByTarget[$key] = static::getFromCache('getConstructFieldsByTypeInstance'.$key, function() use ($hasExtraField, $targetType, $targetId) {
+                return static::buildQueryToGetList($hasExtraField, $targetType, $targetId)
+                    ->where('parentId', 0)
+                    ->get();
+            });
+        }
+        return static::$constructFieldsByTarget[$key];
+    }
+
+    static function buildValuesFromConstruct(CanMakeExtraFieldInterface $hasExtraField)
+    {
+        [$targetType] = static::getTarget($hasExtraField->getExtraFieldTargetTypeInstance());
+        $instance = \HXM\ExtraField\ExtraField::getEnumInstance($targetType);
+        return static::getConstructFieldsByTypeInstance($hasExtraField)
+            ->groupBy('target_id')
+            ->map(function($collect) use ($instance) {
+                return $collect->mapWithkeys(function($field){
+                    return $field->toDefault();
+                });
+            });
+    }
 
     static function getAllFieldsByTypeInstance(CanMakeExtraFieldInterface $hasExtraField): Collection
     {
@@ -59,6 +87,8 @@ class ExtraFieldService
 
         Cache::forget('allFieldsByTarget'.$targetType.$targetId);
         Cache::forget('allSectionsByTarget'.$targetType.$targetId);
+        Cache::forget('getConstructFieldsByTypeInstance'.$targetType.$targetId);
+        Cache::forget('buildValuesFromConstruct'.$targetType.$targetId);
     }
 
     protected function getTarget(CanMakeExtraFieldInterface $hasExtraField): array
@@ -78,12 +108,12 @@ class ExtraFieldService
 
     protected function buildQueryToGetList(CanMakeExtraFieldInterface $canMakeExtraField, string $targetType, ?int $targetId)
     {
+        ExtraField::$loadMissingChildren = true;
         return $canMakeExtraField->fields()->getModel()->newQuery()->where('target_type', $targetType)
             ->when(is_null($targetId), function($q) use ($targetId) {
                 return $q->where('target_id', '<>', 0);
             }, function($q) use ($targetId) {
                 return $q->where('target_id', $targetId);
-            })
-            ->with('fields.options', 'options');
+            });
     }
 }
