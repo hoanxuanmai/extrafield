@@ -67,7 +67,7 @@ class ExtraFieldValueValidation
     public function getRulesByType(&$rules = [])
     {
         $resolved = [];
-        ExtraFieldService::getAllFieldsByTypeInstance($this->extraFieldTypeInstance)
+        ExtraFieldService::getConstructFieldsByTypeInstance($this->extraFieldTypeInstance)
             ->each(function(ExtraField $field) use (&$rules, &$resolved){
                 $this->addFieldRules($field, $rules, $resolved);
             });
@@ -126,7 +126,7 @@ class ExtraFieldValueValidation
             }
         } else {
             if ($field->required) {
-                $rules[$attribute] = ['required'];
+                $rules[$attribute] = [$this->extraFieldTypeEnumInstance::requireHasFields($type) ? 'sometimes' :'required'];
             } else {
                 $rules[$attribute] = ['nullable'];
             }
@@ -141,8 +141,8 @@ class ExtraFieldValueValidation
             $rules[$attribute][] = 'min:1';
         }
         if ($this->extraFieldTypeEnumInstance::requireHasFields($type)) {
-            $field->fields->each(function($childField) use (&$rules, $field, $childOfArray, &$resolved) {
-                $this->addFieldRules($childField, $rules, $resolved, true);
+            $field->fields->each(function($childField) use (&$rules, $field, $childOfArray, &$resolved, $type) {
+                $this->addFieldRules($childField, $rules, $resolved, $this->extraFieldTypeEnumInstance::inputRequestIsMultiple($type));
             });
         }
         if ($this->extraFieldTypeEnumInstance instanceof ExtraFieldTypeEnumHasValidationInterface) {

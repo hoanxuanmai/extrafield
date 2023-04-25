@@ -80,7 +80,7 @@ class ExtraFieldTypeEnums extends EnumBase implements ExtraFieldTypeEnumInterfac
 
     static function requireHasFields($value) : bool
     {
-        return in_array($value, [self::SECTION, self::CLAIMS, self::REPEATER]);
+        return in_array($value, [self::CLAIMS, self::REPEATER, self::SECTION]);
     }
 
     static function inputRequestHasFile($value) : bool
@@ -90,7 +90,7 @@ class ExtraFieldTypeEnums extends EnumBase implements ExtraFieldTypeEnumInterfac
 
     static function inputRequestIsMultiple($value) : bool
     {
-        return $value == self::REPEATER;
+        return in_array($value, [self::CLAIMS, self::REPEATER]);
     }
 
     static function appendToArray(ExtraFieldModel $extraField): array

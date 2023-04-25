@@ -110,7 +110,7 @@ class Controller ...
 {
     function createOrUpdateExtraField(AnyModel $modelHasExtraField, Request $request, UpdateOrCreateFieldAction $action)
     {
-        $action->handle($modelHasExtraField, $request);
+        $action->handle($modelHasExtraField, $request, $allowMissingFields);
     }
 }
 ```

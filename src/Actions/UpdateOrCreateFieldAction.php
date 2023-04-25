@@ -32,7 +32,7 @@ class UpdateOrCreateFieldAction
     protected Collection $data;
     protected ?Translator $translator;
 
-    function handle(Model $target, Request $request)
+    function handle(Model $target, Request $request, $allowMissingFields = false)
     {
         if (! $target instanceof CanMakeExtraFieldInterface) {
             throw new CanNotMakeExtraFieldException(get_class($target));
@@ -45,7 +45,7 @@ class UpdateOrCreateFieldAction
             'target_type' => $this->target->getMorphClass()
         ]);
         $this->prepareForValidation();
-        $validator = Validator::make($this->data->all(), $this->rules(), [], $this->attributes());
+        $validator = Validator::make($this->data->all(), $this->rules($allowMissingFields), [], $this->attributes());
         if ($validator->fails()) {
             throw ValidationException::withMessages($validator->errors()->toArray());
         } else {
@@ -149,7 +149,7 @@ class UpdateOrCreateFieldAction
         );
     }
 
-    function rules()
+    function rules($allowMissingFields = false)
     {
         $rules =  [
             'id' => [
@@ -188,7 +188,7 @@ class UpdateOrCreateFieldAction
             $rules = array_merge($rules, $this->buildRuleOptions());
         }
 
-        if ($this->enumInstance::requireHasFields($this->get('type'))) {
+        if (!$allowMissingFields && $this->enumInstance::requireHasFields($this->get('type'))) {
             $rules = array_merge($rules, [
                 'fields' => [
                     'required',
