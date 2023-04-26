@@ -24,6 +24,7 @@ class ExtraFieldValueValidation
     public string $errorBag;
     public array $dataInput;
     public $validated;
+    public array $except = [];
 
     /**
      * @param CanMakeExtraFieldInterface $extraFieldTypeInstance
@@ -49,7 +50,9 @@ class ExtraFieldValueValidation
         if ($validator->fails()) {
             throw ValidationException::withMessages($validator->errors()->toArray())->errorBag($this->errorBag);
         }
-        $this->validated = $validator->validated();
+
+        $this->validated = collect($validator->validated())->except($this->except)->toArray();
+
         return $this->validated;
     }
 
@@ -61,6 +64,7 @@ class ExtraFieldValueValidation
         if (is_null($this->validated)) {
             return $this->validate();
         }
+
         return $this->validated;
     }
 
@@ -71,16 +75,19 @@ class ExtraFieldValueValidation
             ->each(function(ExtraField $field) use (&$rules, &$resolved){
                 $this->addFieldRules($field, $rules, $resolved);
             });
+
         return $rules;
     }
 
     public function getAttributesByType(&$attributes = [])
     {
         $resolved = [];
+
         ExtraFieldService::getAllFieldsByTypeInstance($this->extraFieldTypeInstance)
             ->each(function(ExtraField $field) use (&$attributes, &$resolved){
                 self::addFieldAttributes($field, $attributes, $resolved);
             });
+
         return $attributes;
     }
 
@@ -119,14 +126,14 @@ class ExtraFieldValueValidation
                     return in_array($dt->getKey(), $requiredIfOptionIds);
                 })->pluck('id')->toArray();
             }
-            if ($valueOptions) {
-                $rules[$attribute] = [new RequiredIf(in_array($this->input($relatedField->inputName), $valueOptions))];
-            } else {
-                $rules[$attribute] = $hideIfNotRequired ? ['prohibited'] : ['nullable'];
+            if (!in_array($this->input($relatedField->inputName), $valueOptions) && $hideIfNotRequired) {
+                $this->except[] = $field->inputName;
+                return;
             }
+            $rules[$attribute] = [new RequiredIf(in_array($this->input($relatedField->inputName), $valueOptions))];
         } else {
             if ($field->required) {
-                $rules[$attribute] = [$this->extraFieldTypeEnumInstance::requireHasFields($type) ? 'sometimes' :'required'];
+                $rules[$attribute] = ['required'];
             } else {
                 $rules[$attribute] = ['nullable'];
             }

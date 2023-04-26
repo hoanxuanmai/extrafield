@@ -115,11 +115,13 @@ class ExtraField extends Model
         static::creating(function(self $model) {
             $model->target_id || $model->target_id = 0;
             $model->placeholder || $model->label = $model->label;
-            $slug = Str::slug($model->label, "_");
-            if (is_numeric($slug)) {
-                $slug = 'field_' . $slug;
+            if (!$model->slug){
+                $slug = Str::slug($model->label, "_");
+                if (is_numeric($slug)) {
+                    $slug = 'field_' . $slug;
+                }
+                $model->slug = $slug;
             }
-            $model->slug = $slug;
         });
 
 

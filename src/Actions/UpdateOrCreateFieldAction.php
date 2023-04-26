@@ -31,12 +31,14 @@ class UpdateOrCreateFieldAction
     protected ExtraFieldTypeEnumInterface $enumInstance;
     protected Collection $data;
     protected ?Translator $translator;
+    protected $skipChildrenFields;
 
-    function handle(Model $target, Request $request, $allowMissingFields = false)
+    function handle(Model $target, Request $request, $skipChildrenFields = false)
     {
         if (! $target instanceof CanMakeExtraFieldInterface) {
             throw new CanNotMakeExtraFieldException(get_class($target));
         }
+        $this->skipChildrenFields = $skipChildrenFields;
         $this->data = collect($request->all());
         $this->target = $target->getExtraFieldTargetTypeInstance();
         $this->enumInstance = ExtraField::getEnumInstance($target->getMorphClass());
@@ -45,7 +47,7 @@ class UpdateOrCreateFieldAction
             'target_type' => $this->target->getMorphClass()
         ]);
         $this->prepareForValidation();
-        $validator = Validator::make($this->data->all(), $this->rules($allowMissingFields), [], $this->attributes());
+        $validator = Validator::make($this->data->all(), $this->rules(), [], $this->attributes());
         if ($validator->fails()) {
             throw ValidationException::withMessages($validator->errors()->toArray());
         } else {
@@ -63,7 +65,7 @@ class UpdateOrCreateFieldAction
             $fieldSetting = $this->getUpdateInstance();
             $fieldSetting->update($this->data->only(['name', 'label', 'placeholder', 'required', 'hidden', 'type', 'settings', 'parentInput'])->toArray());
         } else {
-            $dataSave = $this->data->only(['name', 'target_type','target_id', 'label', 'placeholder', 'type', 'required', 'hidden', 'settings', 'parentInput'])->toArray();
+            $dataSave = $this->data->only(['name', 'target_type','target_id', 'label', 'placeholder', 'type', 'required', 'hidden', 'settings', 'parentInput', 'slug'])->toArray();
             $dataSave['order'] = $this->getParentInstance()->fields()->count() + 1;
             $fieldSetting = $this->getParentInstance()
                 ->fields()
@@ -110,6 +112,8 @@ class UpdateOrCreateFieldAction
     }
     protected function updateFieldChildren($fieldSetting, $fields)
     {
+        if ($this->skipChildrenFields) return;
+
         $newFields = collect($fields);
         $updateIds = $newFields->pluck('id')->filter()->toArray();
 
@@ -149,7 +153,7 @@ class UpdateOrCreateFieldAction
         );
     }
 
-    function rules($allowMissingFields = false)
+    function rules()
     {
         $rules =  [
             'id' => [
@@ -188,7 +192,7 @@ class UpdateOrCreateFieldAction
             $rules = array_merge($rules, $this->buildRuleOptions());
         }
 
-        if (!$allowMissingFields && $this->enumInstance::requireHasFields($this->get('type'))) {
+        if (!$this->skipChildrenFields && $this->enumInstance::requireHasFields($this->get('type'))) {
             $rules = array_merge($rules, [
                 'fields' => [
                     'required',
@@ -292,8 +296,10 @@ class UpdateOrCreateFieldAction
             ]);
         }
 
+        $slug = $this->get('slug', Str::slug($this->get('label'), '_'));
+        is_numeric($slug) && $slug = 'field_'.$slug;
         $this->merge([
-            'slug' => $this->get('slug', Str::slug($this->get('label'), '_')),
+            'slug' => $slug,
             'placeholder' => $this->get('placeholder', $this->get('label')),
         ]);
     }
