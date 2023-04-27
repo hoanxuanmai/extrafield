@@ -12,6 +12,7 @@ use HXM\ExtraField\Contracts\ExtraFieldTypeEnumInterface;
 use HXM\ExtraField\Exceptions\DeniedAccessExtraFieldValueException;
 use HXM\ExtraField\ExtraFieldValueValidation;
 use HXM\ExtraField\Models\ExtraField;
+use HXM\ExtraField\Models\ExtraFieldValue;
 use HXM\ExtraField\Services\ExtraFieldService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
@@ -27,7 +28,8 @@ class SaveExtraFieldValueForTargetAction
     protected Collection $extraValuesExist;
     protected ExtraFieldTypeEnumInterface $extraFieldTypeEnumInstance;
     protected CanMakeExtraFieldInterface $extraFieldTypeInstance;
-    protected array $resolved = [];
+    protected array $updated = [];
+    protected array $created = [];
 
     /**
      * @throws \Exception
@@ -67,12 +69,14 @@ class SaveExtraFieldValueForTargetAction
 
         $this->extraValues = collect();
 
-        if ($filters) {
-            $this->extraValuesExist = $this->target->extraValues()->where($filters)->get();
-        } else {
-            $this->extraValuesExist = $this->target->extraValues;
-        }
-        ExtraFieldService::getAllFieldsByTypeInstance($this->extraFieldTypeInstance)
+        $this->registerEvent();
+
+        $this->extraValuesExist = $this->target
+            ->extraValues()
+            ->when($filters, function($q) use ($filters) { return $q->where($filters); })
+            ->get();
+
+        ExtraFieldService::getConstructFieldsByTypeInstance($this->extraFieldTypeInstance)
             ->when($filters, function(Collection $list) use ($filters){
                 return $list->filter($filters);
             })
@@ -84,18 +88,21 @@ class SaveExtraFieldValueForTargetAction
         if ($deleteValues->count()) {
             $this->target->extraValues()
                 ->getQuery()
+                ->when($filters, function($q) use ($filters) { return $q->where($filters); })
                 ->withoutGlobalScopes()
                 ->whereIn('id', $deleteValues->toArray())
                 ->delete();
         }
-
+        if ($this->updated || $this->created) {
+            $this->target->fireExtraFieldUpdatedEvent();
+        }
 
         return $this->target;
     }
 
     /**
      * @param ExtraField $field
-     * @param $isMultiple
+     * @param boolean $isMultiple
      * @return void
      */
     protected function appendDataSaveFromFieldInstance(ExtraField $field, $isMultiple = false): void
@@ -106,7 +113,6 @@ class SaveExtraFieldValueForTargetAction
             });
         } else {
             if ($isMultiple) {
-                $this->resolved[] = $field->inputName;
                 $values = Arr::get($this->dataInput, $field->parentInput);
                 foreach ($values as $row => $groupValues) {
 
@@ -122,7 +128,8 @@ class SaveExtraFieldValueForTargetAction
                     ];
                     $this->storeValueToDatabase($field, $dataSave);
                 }
-            } elseif (!in_array($field->inputName, $this->resolved)) {
+            } else {
+
                 if ($this->extraFieldTypeEnumInstance::inputRequestHasFile($field->type) && $document = $this->target->handleSaveExtraValueIsFile(Arr::get($this->dataInput, $field->inputName))) {
                     $value = $document;
                 } else {
@@ -140,20 +147,37 @@ class SaveExtraFieldValueForTargetAction
 
     protected function storeValueToDatabase($field, $dataSave): void
     {
+        /** @var Model $valueInstance */
         $valueInstance = $this->extraValuesExist
             ->when(isset($dataSave['row']), function(Collection $dt) use ($dataSave){
                 return $dt->where('row', $dataSave['row']);
             })
             ->firstWhere('extraFieldId', $field->id);
         if ($valueInstance) {
+
             $valueInstance->update($dataSave);
+
         } else {
+
             $valueInstance = $this->target->extraValues()
                 ->make()
                 ->setRelation('tempType', $field->type)
                 ->fill($dataSave);
+
             $valueInstance->save();
+
         }
         $this->extraValues->push($valueInstance);
+    }
+
+    protected function registerEvent()
+    {
+        $model = $this->target->extraValues()->getModel();
+        $model::created(function($instance){
+            $this->created[] = $instance->id;
+        });
+        $model::updated(function($instance){
+            $this->updated[] = $instance->id;
+        });
     }
 }

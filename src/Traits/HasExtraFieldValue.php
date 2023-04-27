@@ -12,6 +12,7 @@ use HXM\ExtraField\Enums\ExtraFieldTypeEnums;
 use HXM\ExtraField\Models\ExtraFieldValue;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Arr;
@@ -28,18 +29,24 @@ trait HasExtraFieldValue
                 return $query->with('extraValues.options');
             });
         }
-//
-//        static::saving(function(self $model) {
-//            if (static::$cacheExtraValues[$model->getKey()]) {
-//                $keys = empty(config('extra_field.wrap', null)) ? array_keys(static::$cacheExtraValues[$model->getKey()]) : config('extra_field.wrap');
-//
-//                foreach ($keys as $key) {
-//                    unset($model->attributes[$key]);
-//                }
-//                $model->syncOriginal();
-//            }
-//        });
     }
+
+    /**
+     * Register a extraFieldUpdated model event with the dispatcher.
+     *
+     * @param  \Illuminate\Events\QueuedClosure|\Closure|string  $callback
+     * @return void
+     */
+    public static function extraFieldUpdated($callback)
+    {
+        static::registerModelEvent('extraFieldUpdated', $callback);
+    }
+
+    function fireExtraFieldUpdatedEvent()
+    {
+        $this->fireModelEvent('extraFieldUpdated', false);
+    }
+
     function extraValues(): Relation
     {
         return $this->morphMany(ExtraFieldValue::class, 'target');

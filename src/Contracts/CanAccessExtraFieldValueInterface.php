@@ -19,4 +19,18 @@ interface CanAccessExtraFieldValueInterface
      * @return string|null
      */
     function handleSaveExtraValueIsFile($file): ?string;
+
+    /**
+     * Register a extraFieldUpdated model event with the dispatcher.
+     *
+     * @param  \Illuminate\Events\QueuedClosure|\Closure|string  $callback
+     * @return void
+     */
+    public static function extraFieldUpdated($callback);
+
+    /**
+     * Fire ExtraFieldUpdated event for the model.
+     * @return mixed
+     */
+    function fireExtraFieldUpdatedEvent();
 }
