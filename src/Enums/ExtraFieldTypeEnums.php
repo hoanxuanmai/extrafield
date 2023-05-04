@@ -90,7 +90,7 @@ class ExtraFieldTypeEnums extends EnumBase implements ExtraFieldTypeEnumInterfac
 
     static function inputRequestIsMultiple($value) : bool
     {
-        return in_array($value, [self::CLAIMS, self::REPEATER]);
+        return in_array($value, [self::CLAIMS, self::REPEATER, self::MULTIPLE]);
     }
 
     static function appendToArray(ExtraFieldModel $extraField): array

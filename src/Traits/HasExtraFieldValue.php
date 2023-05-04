@@ -9,7 +9,9 @@ namespace HXM\ExtraField\Traits;
 use HXM\ExtraField\Contracts\CanMakeExtraFieldInterface;
 use HXM\ExtraField\Contracts\ExtraFieldTypeEnumInterface;
 use HXM\ExtraField\Enums\ExtraFieldTypeEnums;
+use HXM\ExtraField\ExtraField;
 use HXM\ExtraField\Models\ExtraFieldValue;
+use HXM\ExtraField\Services\ExtraFieldService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -59,7 +61,7 @@ trait HasExtraFieldValue
 
     function getExtraFieldEnumsInstance(): ExtraFieldTypeEnumInterface
     {
-        return new ExtraFieldTypeEnums();
+        return ExtraField::getEnumInstance(get_class($this->getExtraFieldTargetTypeInstance()));
     }
 
     public function newCollection(array $models = [])
@@ -74,15 +76,18 @@ trait HasExtraFieldValue
 
     function makeExtraFieldValueAttributes()
     {
+        $extraFieldEnumInstance = $this->getExtraFieldEnumsInstance();
         if (!isset(static::$cacheExtraValues[$this->getKey()])) {
             static::$cacheExtraValues[$this->getKey()] = [];
             $dataList = [];
             if ($this->relations['extraValues'] ?? null && $this->relations['extraValues'] instanceof Collection && $this->relations['extraValues']->count()) {
-
-                $this->relations['extraValues']->each(function (ExtraFieldValue $data) use(&$dataList) {
+                $this->relations['extraValues']->each(function (ExtraFieldValue $data) use(&$dataList, $extraFieldEnumInstance) {
                     if (!is_null($data->row)) {
-                        $dataList[] = $data->parentInput;
-                        Arr::set(static::$cacheExtraValues[$this->getKey()], "$data->parentInput.$data->row.$data->slug", $data->value);
+                        $key = "$data->parentInput.$data->row.$data->slug";
+                        if ($extraFieldEnumInstance::inputRequestIsMultiple($data->type)) {
+                            $key = "$data->inputName.$data->row";
+                        }
+                        Arr::set(static::$cacheExtraValues[$this->getKey()], $key, $data->value);
                     } else {
                         Arr::set(static::$cacheExtraValues[$this->getKey()], $data->inputName, $data->value);
                     }

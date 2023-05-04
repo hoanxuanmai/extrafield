@@ -128,6 +128,16 @@ class SaveExtraFieldValueForTargetAction
                     ];
                     $this->storeValueToDatabase($field, $dataSave);
                 }
+            } elseif($this->extraFieldTypeEnumInstance::inputRequestIsMultiple($field->type)) {
+                $values = Arr::get($this->dataInput, $field->inputName);
+                foreach ($values as $row => $value) {
+                    $dataSave = [
+                        'extraFieldId' => $field->id,
+                        'value' => $value,
+                        'row' =>$row
+                    ];
+                    $this->storeValueToDatabase($field, $dataSave);
+                }
             } else {
 
                 if ($this->extraFieldTypeEnumInstance::inputRequestHasFile($field->type) && $document = $this->target->handleSaveExtraValueIsFile(Arr::get($this->dataInput, $field->inputName))) {
