@@ -109,7 +109,7 @@ class ExtraField extends Model
     static function booted()
     {
         static::addGlobalScope('order', function(Builder $query) {
-            $query->orderBy('order')->orderBy('id');
+            $query->orderByDesc('order')->orderByDesc('id');
         });
 
         static::creating(function(self $model) {
