@@ -117,7 +117,7 @@ class SaveExtraFieldValueForTargetAction
                 foreach ($values as $row => $groupValues) {
 
                     if ($this->extraFieldTypeEnumInstance::inputRequestHasFile($field->type)) {
-                        $value = $this->target->handleSaveExtraValueIsFile(Arr::get($groupValues, $field->slug));
+                        $value = $this->target->handleSaveExtraValueIsFile(Arr::get($groupValues, $field->slug), $this->getCurrentValueInstance($field, $row));
                     } else {
                         $value = \HXM\ExtraField\ExtraField::getValueProcessionInstance($this->target->getMorphClass())->setValue(Arr::get($groupValues, $field->slug), $field->type, $field);
                     }
@@ -140,7 +140,8 @@ class SaveExtraFieldValueForTargetAction
                 }
             } else {
 
-                if ($this->extraFieldTypeEnumInstance::inputRequestHasFile($field->type) && $document = $this->target->handleSaveExtraValueIsFile(Arr::get($this->dataInput, $field->inputName))) {
+                if ($this->extraFieldTypeEnumInstance::inputRequestHasFile($field->type)
+                    && $document = $this->target->handleSaveExtraValueIsFile(Arr::get($this->dataInput, $field->inputName), $this->getCurrentValueInstance($field))) {
                     $value = $document;
                 } else {
                     $value = \HXM\ExtraField\ExtraField::getValueProcessionInstance($this->target->getMorphClass())->setValue(Arr::get($this->dataInput, $field->inputName), $field->type, $field);
@@ -155,14 +156,23 @@ class SaveExtraFieldValueForTargetAction
         }
     }
 
+    /**
+     * @return Model|null
+     */
+    protected function getCurrentValueInstance($field, $row = null)
+    {
+        return $this->extraValuesExist
+            ->when(!is_null($row), function(Collection $dt) use ($row){
+                return $dt->where('row', $row);
+            })
+            ->firstWhere('extraFieldId', $field->id);
+    }
+
     protected function storeValueToDatabase($field, $dataSave): void
     {
         /** @var Model $valueInstance */
-        $valueInstance = $this->extraValuesExist
-            ->when(isset($dataSave['row']), function(Collection $dt) use ($dataSave){
-                return $dt->where('row', $dataSave['row']);
-            })
-            ->firstWhere('extraFieldId', $field->id);
+        $valueInstance = $this->getCurrentValueInstance($field, $dataSave['row'] ?? null);
+
         if ($valueInstance) {
 
             $valueInstance->update($dataSave);

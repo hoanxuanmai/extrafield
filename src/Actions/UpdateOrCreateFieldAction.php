@@ -66,7 +66,6 @@ class UpdateOrCreateFieldAction
             $fieldSetting->update($this->data->only(['name', 'label', 'placeholder', 'required', 'hidden', 'type', 'settings', 'parentInput'])->toArray());
         } else {
             $dataSave = $this->data->only(['name', 'target_type','target_id', 'label', 'placeholder', 'type', 'required', 'hidden', 'settings', 'parentInput', 'slug'])->toArray();
-            $dataSave['order'] = $this->getParentInstance()->fields()->count() + 1;
             $fieldSetting = $this->getParentInstance()
                 ->fields()
                 ->create($dataSave);

@@ -25,6 +25,9 @@ class ExtraFieldValueValidation
     public array $dataInput;
     public $validated;
     public array $except = [];
+    protected array $attributes = [];
+    protected array $rules = [];
+
 
     /**
      * @param CanMakeExtraFieldInterface $extraFieldTypeInstance
@@ -45,7 +48,7 @@ class ExtraFieldValueValidation
     function validate(): array
     {
 
-        $validator = Validator::make($this->dataInput, $this->getRulesByType(), [], $this->getAttributesByType());
+        $validator = Validator::make($this->dataInput, $this->getRulesByType(), [], $this->attributes);
 
         if ($validator->fails()) {
             throw ValidationException::withMessages($validator->errors()->toArray())->errorBag($this->errorBag);
@@ -68,15 +71,17 @@ class ExtraFieldValueValidation
         return $this->validated;
     }
 
-    public function getRulesByType(&$rules = [])
+    public function getRulesByType()
     {
+        $this->rules = [];
+        $this->attributes = [];
         $resolved = [];
         ExtraFieldService::getConstructFieldsByTypeInstance($this->extraFieldTypeInstance)
-            ->each(function(ExtraField $field) use (&$rules, &$resolved){
-                $this->addFieldRules($field, $rules, $resolved);
+            ->each(function(ExtraField $field) use (&$resolved){
+                $this->addFieldRules($field, $resolved);
             });
 
-        return $rules;
+        return $this->rules;
     }
 
     public function getAttributesByType(&$attributes = [])
@@ -100,7 +105,7 @@ class ExtraFieldValueValidation
         return Arr::get($this->dataInput, $key);
     }
 
-    protected function addFieldRules(ExtraField $field, &$rules, &$resolved = [], $childOfArray = false): void
+    protected function addFieldRules(ExtraField $field, &$resolved = [], $childOfArray = false): void
     {
         $type = $field->type;
         if (in_array($field->id, $resolved)) {
@@ -130,31 +135,32 @@ class ExtraFieldValueValidation
                 $this->except[] = $field->inputName;
                 return;
             }
-            $rules[$attribute] = [new RequiredIf(in_array($this->input($relatedField->inputName), $valueOptions))];
+            $this->rules[$attribute] = [new RequiredIf(in_array($this->input($relatedField->inputName), $valueOptions))];
         } else {
             if ($field->required) {
-                $rules[$attribute] = ['required'];
+                $this->rules[$attribute] = ['required'];
             } else {
-                $rules[$attribute] = ['nullable'];
+                $this->rules[$attribute] = ['nullable'];
             }
         }
 
         if ($this->extraFieldTypeEnumInstance::requireHasOptions($type)) {
-            $rules[$attribute][] = 'in:'.$field->options->implode('id', ',');
+            $this->rules[$attribute][] = 'in:'.$field->options->implode('id', ',');
         }
 
         if ($this->extraFieldTypeEnumInstance::inputRequestIsMultiple($type)) {
-            $rules[$attribute][] = 'array';
-            $rules[$attribute][] = 'min:1';
+            $this->rules[$attribute][] = 'array';
+            $this->rules[$attribute][] = 'min:1';
         }
         if ($this->extraFieldTypeEnumInstance::requireHasFields($type)) {
-            $field->fields->each(function($childField) use (&$rules, $field, $childOfArray, &$resolved, $type) {
-                $this->addFieldRules($childField, $rules, $resolved, $this->extraFieldTypeEnumInstance::inputRequestIsMultiple($type));
+            $field->fields->each(function($childField) use ($field, $childOfArray, &$resolved, $type) {
+                $this->addFieldRules($childField, $resolved, $this->extraFieldTypeEnumInstance::inputRequestIsMultiple($type));
             });
         }
         if ($this->extraFieldTypeEnumInstance instanceof ExtraFieldTypeEnumHasValidationInterface) {
-            $rules[$attribute] = $this->extraFieldTypeEnumInstance::makeRuleByType($type, $rules[$attribute], $field);
+            $this->rules[$attribute] = $this->extraFieldTypeEnumInstance::makeRuleByType($type, $this->rules[$attribute], $field);
         }
+        $this->attributes[$attribute] = $field->label;
     }
 
     protected function addFieldAttributes(ExtraField $field, &$attributes, &$resolved = [], $childOfArray = false)

@@ -6,6 +6,7 @@
 
 namespace HXM\ExtraField\Contracts;
 
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Relation;
 
 interface CanAccessExtraFieldValueInterface
@@ -16,9 +17,10 @@ interface CanAccessExtraFieldValueInterface
 
     /**
      * @param $file
+     * @param Model|null $currentValue
      * @return string|null
      */
-    function handleSaveExtraValueIsFile($file): ?string;
+    function handleSaveExtraValueIsFile($file, $currentValue): ?string;
 
     /**
      * Register a extraFieldUpdated model event with the dispatcher.

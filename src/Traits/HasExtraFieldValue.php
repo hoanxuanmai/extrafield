@@ -17,7 +17,9 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Str;
 
 trait HasExtraFieldValue
 {
@@ -79,9 +81,8 @@ trait HasExtraFieldValue
         $extraFieldEnumInstance = $this->getExtraFieldEnumsInstance();
         if (!isset(static::$cacheExtraValues[$this->getKey()])) {
             static::$cacheExtraValues[$this->getKey()] = [];
-            $dataList = [];
             if ($this->relations['extraValues'] ?? null && $this->relations['extraValues'] instanceof Collection && $this->relations['extraValues']->count()) {
-                $this->relations['extraValues']->each(function (ExtraFieldValue $data) use(&$dataList, $extraFieldEnumInstance) {
+                $this->relations['extraValues']->each(function (ExtraFieldValue $data) use($extraFieldEnumInstance) {
                     if (!is_null($data->row)) {
                         $key = "$data->parentInput.$data->row.$data->slug";
                         if ($extraFieldEnumInstance::inputRequestIsMultiple($data->type)) {
@@ -93,14 +94,43 @@ trait HasExtraFieldValue
                     }
                 });
             }
-            foreach (array_unique($dataList) as $key) {
-                $newValue = collect(Arr::get(static::$cacheExtraValues[$this->getKey()], $key))->values()->toArray();
-                Arr::set(static::$cacheExtraValues[$this->getKey()], $key, $newValue);
-            }
         }
         $wrap = config('extra_field.wrap', null);
         $this->attributes = array_merge(empty($wrap) ? static::$cacheExtraValues[$this->getKey()] : [$wrap => static::$cacheExtraValues[$this->getKey()]], $this->attributes);
         $this->syncOriginal();
         return $this;
+    }
+
+    function handleSaveExtraValueIsFile($file, $currentValue): ?string
+    {
+        if (empty($file)) {
+            return null;
+        }
+        $path = 'extrafields/';
+        if ($file instanceof UploadedFile) {
+            $name = $file->getClientOriginalName();
+            $mimeType = $file->getMimeType();
+            $size = $file->getSize();
+            $path = $file->store($path . time(), 'public');
+            $info = pathinfo(storage_path($path));
+            $clientExt = $file->getClientOriginalExtension();
+            $ext = $info['extension'];
+            return json_encode([
+                'ext' => $ext,
+                'name' => Str::replaceLast('.'.$clientExt,'', $name).'.'.$ext,
+                'path' => $path,
+                'mime' => $mimeType,
+                'size' => $size
+            ]);
+        } elseif ($currentValue && $value = $currentValue->value) {
+            $value = $currentValue->value;
+            $name = $file['name'] ?? $value['name'];
+            $name = preg_replace('/\.\w+$/', '', $name).'.'.$value['ext'];
+            $dataFile = array_merge($value, [
+                'name' => $name
+            ]);
+        }
+
+        return json_encode($file);
     }
 }

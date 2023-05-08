@@ -13,6 +13,7 @@ use HXM\ExtraField\Enums\ExtraFieldTypeEnums;
 use HXM\ExtraField\Models\ExtraField as ExtraFieldModel;
 use HXM\ExtraField\Models\ExtraFieldValue;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\Storage;
 
 class ExtraValueProcessValue implements ExtraValueProcessValueInterface
 {
@@ -30,6 +31,27 @@ class ExtraValueProcessValue implements ExtraValueProcessValueInterface
             }
             case ExtraFieldTypeEnums::NUMBER: {
                 return (float) $value;
+            }
+            case ExtraFieldTypeEnums::FILE: {
+                if (is_null($value)) {
+                    return $value;
+                }
+                $decode = json_decode($value, true);
+
+                if (is_null($decode) && is_string($value) && Storage::exists($value)) {
+                    $info = pathinfo(storage_path($value));
+                    $decode = [
+                        'ext' => $info['extension'],
+                        'name' => $info['basename'],
+                        'path' => $value,
+                    ];
+                }
+                try {
+                    $decode['url'] = tenant_asset($decode['path']);
+                } catch (\Exception $e) {
+                    return null;
+                }
+                return $decode;
             }
             default: return (string) $value;
         }
