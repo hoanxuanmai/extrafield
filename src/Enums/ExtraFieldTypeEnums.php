@@ -19,7 +19,6 @@ class ExtraFieldTypeEnums extends EnumBase implements ExtraFieldTypeEnumInterfac
     const SELECT = 'SELECT';
     const MULTIPLE = 'MULTIPLE';
     const FILE = 'FILE';
-    const CURRENCY = 'CURRENCY';
     const DATE = 'DATE';
     const TIME = 'TIME';
     const DATETIME = 'DATETIME';
@@ -33,7 +32,6 @@ class ExtraFieldTypeEnums extends EnumBase implements ExtraFieldTypeEnumInterfac
         'SELECT' => 'Select',
         'MULTIPLE' => 'Multiple choice',
         'FILE' => 'Upload File',
-        'CURRENCY' => 'Currency',
         'DATE' => 'Only Date',
         'TIME' => 'Only Time',
         'DATETIME' => 'Date and Time',
@@ -64,7 +62,7 @@ class ExtraFieldTypeEnums extends EnumBase implements ExtraFieldTypeEnumInterfac
             case self::DATE:  return 'Datepicker';
             case self::DATETIME: return 'DateTime';
             case self::TIME: return 'Time';
-            case self::CURRENCY: return 'Currency';
+            case self::NUMBER: return 'Number';
             case self::CLAIMS: return 'Claims';
             case self::REPEATER: return 'Repeater';
             default: return 'Text';
@@ -118,6 +116,12 @@ class ExtraFieldTypeEnums extends EnumBase implements ExtraFieldTypeEnumInterfac
             case self::DATETIME: {
                 $rules = array_merge($rules, [
                     'date_format:'.ExtraField::$inputDateFormat . ' ' .ExtraField::$inputTimeFormat
+                ]);
+                break;
+            }
+            case self::NUMBER: {
+                $rules = array_merge($rules, [
+                    'numeric'
                 ]);
                 break;
             }
