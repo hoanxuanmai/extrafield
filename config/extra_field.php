@@ -20,6 +20,12 @@ return [
         'values' => 'extra_field_values',
     ],
     'validations' => [
+        'rules' => [
+            'FILE' => [
+                'mimetypes:image/jpeg,image/png,application/pdf',
+                'max:10000'
+            ]
+        ],
         'attributes' => [
             'slug' => "Label",
             'label' => "Label",

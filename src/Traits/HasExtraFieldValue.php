@@ -112,9 +112,9 @@ trait HasExtraFieldValue
             $mimeType = $file->getMimeType();
             $size = $file->getSize();
             $path = $file->store($path . time(), 'public');
-            $info = pathinfo(storage_path($path));
+            $ext = pathinfo(storage_path($path, PATHINFO_EXTENSION));
             $clientExt = $file->getClientOriginalExtension();
-            $ext = $info['extension'];
+
             return json_encode([
                 'ext' => $ext,
                 'name' => Str::replaceLast('.'.$clientExt,'', $name).'.'.$ext,

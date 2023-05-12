@@ -12,6 +12,7 @@ use HXM\ExtraField\Contracts\ExtraFieldTypeEnumInterface;
 use HXM\ExtraField\Models\ExtraField;
 use HXM\ExtraField\Models\ExtraFieldOption;
 use HXM\ExtraField\Services\ExtraFieldService;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\RequiredIf;
@@ -23,10 +24,12 @@ class ExtraFieldValueValidation
     protected ExtraFieldTypeEnumInterface $extraFieldTypeEnumInstance;
     public string $errorBag;
     public array $dataInput;
+    public array $dataFiles;
     public $validated;
     public array $except = [];
     protected array $attributes = [];
     protected array $rules = [];
+    protected array $configRules = [];
     protected array $resolved = [];
 
 
@@ -40,6 +43,8 @@ class ExtraFieldValueValidation
         $this->extraFieldTypeInstance = $extraFieldTypeInstance->getExtraFieldTargetTypeInstance();
         $this->extraFieldTypeEnumInstance = \HXM\ExtraField\ExtraField::getEnumInstance(get_class($extraFieldTypeInstance));
         $this->dataInput = empty(config('extra_field.wrap')) ? $data : $data[config('extra_field.wrap')] ?? [];
+        $this->dataFiles = $this->filterFiles($this->dataInput) ?? [];
+        $this->configRules = config('extra_field.validations.rules', []);
         $this->errorBag = $errorBag;
     }
 
@@ -98,6 +103,34 @@ class ExtraFieldValueValidation
     {
         return Arr::get($this->dataInput, $key);
     }
+    /**
+     * @param $key
+     * @return array|\ArrayAccess|mixed
+     */
+    protected function file($key = null)
+    {
+        return Arr::get($this->dataFiles, $key);
+    }
+
+    protected function filterFiles($files)
+    {
+        if (! $files) {
+            return;
+        }
+
+        foreach ($files as $key => $file) {
+            if (is_array($file)) {
+                $files[$key] = $this->filterFiles($file);
+                if (empty($files[$key])) {
+                    unset($files[$key]);
+                }
+            } elseif (! $file instanceof UploadedFile) {
+                unset($files[$key]);
+            }
+
+        }
+        return $files;
+    }
 
     protected function addFieldRules(ExtraField $field, $childOfArray = false): void
     {
@@ -145,14 +178,30 @@ class ExtraFieldValueValidation
 
         if ($this->extraFieldTypeEnumInstance::inputRequestIsMultiple($type)) {
             $this->rules[$attribute][] = 'array';
-            $childAttribute = $attribute.'.*';
+            $this->attributes[$attribute] = $field->label;
+            $attribute = $attribute.'.*';
             if ($field->required) {
-                $this->rules[$childAttribute] = ['required'];
+                $this->rules[$attribute] = ['required'];
             } else {
-                $this->rules[$childAttribute] = ['nullable'];
+                $this->rules[$attribute] = ['nullable'];
             }
-            $this->attributes[$childAttribute] = $field->label;
         }
+
+        if ($config = ($this->configRules[$type] ?? [])) {
+            /*File rules*/
+            if ($this->extraFieldTypeEnumInstance::inputRequestHasFile($type)
+                && $this->extraFieldTypeEnumInstance::inputRequestHasFile($type)) {
+                $files = $this->file($field->inputName) ?? [];
+                foreach ($files as $key => $file) {
+                    $this->rules[trim($attribute, '.*').'.'.$key] = $config;
+                }
+
+            } else {
+                $this->rules[$attribute] = array_merge($this->rules[$attribute], $config);
+            }
+
+        }
+
         if ($this->extraFieldTypeEnumInstance::requireHasFields($type)) {
             $field->fields->each(function($childField) use ($field, $childOfArray, $type) {
                 $this->addFieldRules($childField, $this->extraFieldTypeEnumInstance::inputRequestIsMultiple($type));
