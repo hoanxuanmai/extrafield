@@ -27,6 +27,7 @@ class ExtraFieldValueValidation
     public array $except = [];
     protected array $attributes = [];
     protected array $rules = [];
+    protected array $resolved = [];
 
 
     /**
@@ -75,7 +76,6 @@ class ExtraFieldValueValidation
     {
         $this->rules = [];
         $this->attributes = [];
-        $resolved = [];
         ExtraFieldService::getConstructFieldsByTypeInstance($this->extraFieldTypeInstance)
             ->each(function(ExtraField $field) use (&$resolved){
                 $this->addFieldRules($field, $resolved);
@@ -86,14 +86,8 @@ class ExtraFieldValueValidation
 
     public function getAttributesByType(&$attributes = [])
     {
-        $resolved = [];
 
-        ExtraFieldService::getAllFieldsByTypeInstance($this->extraFieldTypeInstance)
-            ->each(function(ExtraField $field) use (&$attributes, &$resolved){
-                self::addFieldAttributes($field, $attributes, $resolved);
-            });
-
-        return $attributes;
+        return $this->attributes;
     }
 
     /**
@@ -105,15 +99,16 @@ class ExtraFieldValueValidation
         return Arr::get($this->dataInput, $key);
     }
 
-    protected function addFieldRules(ExtraField $field, &$resolved = [], $childOfArray = false): void
+    protected function addFieldRules(ExtraField $field, $childOfArray = false): void
     {
         $type = $field->type;
-        if (in_array($field->id, $resolved)) {
-            return;
-        } else {
-            $resolved[] = $field->id;
-        }
+
         $attribute = $childOfArray ? $field->parentInput . '.*.' . $field->slug : $field->inputName;
+
+        if (in_array($attribute, $this->resolved)) {
+            return;
+        }
+        $this->resolved[] = $attribute;
 
         $settings = $field->settings;
         $requiredIfFieldId = $settings['requiredIfFieldId'] ?? null;
@@ -150,35 +145,22 @@ class ExtraFieldValueValidation
 
         if ($this->extraFieldTypeEnumInstance::inputRequestIsMultiple($type)) {
             $this->rules[$attribute][] = 'array';
-            $this->rules[$attribute][] = 'min:1';
+            $childAttribute = $attribute.'.*';
+            if ($field->required) {
+                $this->rules[$childAttribute] = ['required'];
+            } else {
+                $this->rules[$childAttribute] = ['nullable'];
+            }
+            $this->attributes[$childAttribute] = $field->label;
         }
         if ($this->extraFieldTypeEnumInstance::requireHasFields($type)) {
-            $field->fields->each(function($childField) use ($field, $childOfArray, &$resolved, $type) {
-                $this->addFieldRules($childField, $resolved, $this->extraFieldTypeEnumInstance::inputRequestIsMultiple($type));
+            $field->fields->each(function($childField) use ($field, $childOfArray, $type) {
+                $this->addFieldRules($childField, $this->extraFieldTypeEnumInstance::inputRequestIsMultiple($type));
             });
         }
         if ($this->extraFieldTypeEnumInstance instanceof ExtraFieldTypeEnumHasValidationInterface) {
             $this->rules[$attribute] = $this->extraFieldTypeEnumInstance::makeRuleByType($type, $this->rules[$attribute], $field);
         }
         $this->attributes[$attribute] = $field->label;
-    }
-
-    protected function addFieldAttributes(ExtraField $field, &$attributes, &$resolved = [], $childOfArray = false)
-    {
-
-        if (in_array($field->id, $resolved)) {
-            return;
-        } else {
-            $resolved[] = $field->id;
-        }
-
-        $attributes[$childOfArray ? $field->parentInput . '.*.' . $field->slug : $field->inputName] = $field->label;
-
-        if ($this->extraFieldTypeEnumInstance::requireHasFields($field->type)) {
-            $field->fields->each(function($childField) use (&$attributes, $field, $childOfArray, &$resolved) {
-                $this->addFieldAttributes($childField, $attributes, $resolved, true);
-            });
-        }
-        return $attributes;
     }
 }

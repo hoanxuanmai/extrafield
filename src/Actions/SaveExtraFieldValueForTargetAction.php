@@ -131,6 +131,12 @@ class SaveExtraFieldValueForTargetAction
             } elseif($this->extraFieldTypeEnumInstance::inputRequestIsMultiple($field->type)) {
                 $values = Arr::get($this->dataInput, $field->inputName);
                 foreach ($values as $row => $value) {
+
+                    if ($this->extraFieldTypeEnumInstance::inputRequestHasFile($field->type)) {
+                        $value = $this->target->handleSaveExtraValueIsFile($value, $this->getCurrentValueInstance($field, $row));
+                    }  else {
+                        $value = \HXM\ExtraField\ExtraField::getValueProcessionInstance($this->target->getMorphClass())->setValue($value, $field->type, $field);
+                    }
                     $dataSave = [
                         'extraFieldId' => $field->id,
                         'value' => $value,
@@ -140,9 +146,8 @@ class SaveExtraFieldValueForTargetAction
                 }
             } else {
 
-                if ($this->extraFieldTypeEnumInstance::inputRequestHasFile($field->type)
-                    && $document = $this->target->handleSaveExtraValueIsFile(Arr::get($this->dataInput, $field->inputName), $this->getCurrentValueInstance($field))) {
-                    $value = $document;
+                if ($this->extraFieldTypeEnumInstance::inputRequestHasFile($field->type)) {
+                    $value = $this->target->handleSaveExtraValueIsFile(Arr::get($this->dataInput, $field->inputName), $this->getCurrentValueInstance($field));
                 } else {
                     $value = \HXM\ExtraField\ExtraField::getValueProcessionInstance($this->target->getMorphClass())->setValue(Arr::get($this->dataInput, $field->inputName), $field->type, $field);
                 }
