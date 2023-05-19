@@ -10,7 +10,8 @@ use HXM\ExtraField\Contracts\CanMakeExtraFieldByInstanceInterface;
 use HXM\ExtraField\Contracts\CanMakeExtraFieldInterface;
 use HXM\ExtraField\Contracts\ExtraFieldTypeEnumInterface;
 use HXM\ExtraField\Enums\ExtraFieldTypeEnums;
-use HXM\ExtraField\Models\ExtraField;
+use HXM\ExtraField\ExtraField;
+use HXM\ExtraField\Models\ExtraField as ModelExtraField;
 use Illuminate\Database\Eloquent\Relations\Relation;
 
 trait HasExtraField
@@ -32,8 +33,18 @@ trait HasExtraField
 
     function fields(): Relation
     {
-        return $this->getExtraFieldTargetTypeInstance()
-            ->hasMany(ExtraField::class, 'target_id', 'extraFieldTargetId')
-            ->where('target_type', $this->getMorphClass());
+        $targetType = $this->getExtraFieldTargetTypeInstance();
+        $tables = ExtraField::getFieldAndOptionTables($targetType);
+        /** @var ModelExtraField $instance */
+        $instance = $this->newRelatedInstance(ExtraField::$modelField);
+        $instance->setTable($tables['fields']);
+
+        $foreignKey = 'target_id';
+
+        $localKey = 'extraFieldTargetId';
+
+        return $this->newHasMany(
+            $instance->newQuery(), $targetType, $instance->getTable().'.'.$foreignKey, $localKey
+        )->where('target_type', $targetType->getMorphClass());
     }
 }

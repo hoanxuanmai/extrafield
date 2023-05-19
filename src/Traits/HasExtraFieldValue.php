@@ -23,7 +23,7 @@ use Illuminate\Support\Str;
 
 trait HasExtraFieldValue
 {
-    static protected bool $withExtraValues = true;
+    static bool $withExtraValues = true;
     protected static array $cacheExtraValues = [];
 
     static function bootHasExtraFieldValue()
@@ -53,7 +53,18 @@ trait HasExtraFieldValue
 
     function extraValues(): Relation
     {
-        return $this->morphMany(ExtraFieldValue::class, 'target');
+        $tables = ExtraField::getPriviteTables(get_class($this));
+
+        $tableValues = $tables['values'];
+        $tableFields = $tables['fields'];
+        /** @var ExtraFieldValue $instance */
+        $instance = $this->newRelatedInstance(ExtraField::$modelValue);
+        $instance->setTable($tableValues);
+        $instance->setExtraFieldTable($tableFields);
+
+        $foreignKey = 'target_id';
+
+        return $this->newMorphMany($instance->newQuery(), $this, $tableValues.'.target_type', $tableValues.'.target_id', $this->getKeyName());
     }
 
     function getExtraFieldTargetTypeInstance(): CanMakeExtraFieldInterface
@@ -83,15 +94,7 @@ trait HasExtraFieldValue
             static::$cacheExtraValues[$this->getKey()] = [];
             if ($this->relations['extraValues'] ?? null && $this->relations['extraValues'] instanceof Collection && $this->relations['extraValues']->count()) {
                 $this->relations['extraValues']->each(function (ExtraFieldValue $data) use($extraFieldEnumInstance) {
-                    if (!is_null($data->row)) {
-                        $key = "$data->parentInput.$data->row.$data->slug";
-                        if ($extraFieldEnumInstance::inputRequestIsMultiple($data->type)) {
-                            $key = "$data->inputName.$data->row";
-                        }
-                        Arr::set(static::$cacheExtraValues[$this->getKey()], $key, $data->value);
-                    } else {
-                        Arr::set(static::$cacheExtraValues[$this->getKey()], $data->inputName, $data->value);
-                    }
+                    Arr::set(static::$cacheExtraValues[$this->getKey()], $data->slug, $data->value);
                 });
             }
         }

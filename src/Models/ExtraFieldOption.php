@@ -17,9 +17,15 @@ class ExtraFieldOption extends Model
         'label',
     ];
 
+    public function __construct(array $attributes = [])
+    {
+        $this->table = \HXM\ExtraField\ExtraField::$tableOptions;
+        parent::__construct($attributes);
+    }
+
     function field(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
-        return $this->belongsTo(ExtraField::class, 'extraFieldId');
+        return $this->belongsTo(\HXM\ExtraField\ExtraField::$modelField, 'extraFieldId');
     }
 
     static function booted()

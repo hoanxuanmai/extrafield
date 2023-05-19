@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 use Modules\Contracts\Entities\Enums\ContractFieldTypeEnums;
+use HXM\ExtraField\ExtraField;
 
 return new class extends Migration
 {
@@ -18,16 +19,17 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create(config('extra_field.tables.values'), function (Blueprint $table) {
+        Schema::create(ExtraField::$tableValues, function (Blueprint $table) {
             $table->uuid('id');
             $table->morphs('target');
             $table->bigInteger('extraFieldId')->unsigned();
+            $table->string('slug')->nullable();
             $table->text('value')->nullable();
             $table->tinyInteger('row')->nullable();
             $table->foreign('extraFieldId')
                 ->references('id')
-                ->on(config('extra_field.tables.fields'))
-                ->onDelete('cascade');
+                ->on(ExtraField::$tableFields)
+                ->cascadeOnDelete();
         });
     }
 
@@ -38,6 +40,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists(config('extra_field.tables.values'));
+        Schema::dropIfExists(ExtraField::$tableValues);
     }
 };

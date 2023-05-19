@@ -30,6 +30,8 @@ class SaveExtraFieldValueForTargetAction
     protected CanMakeExtraFieldInterface $extraFieldTypeInstance;
     protected array $updated = [];
     protected array $created = [];
+    protected array $treeSlug = [];
+    protected ?int $currorRow = null;
 
     /**
      * @throws \Exception
@@ -81,9 +83,9 @@ class SaveExtraFieldValueForTargetAction
                 return $list->filter($filters);
             })
             ->each(function(ExtraField $field) {
-                $this->appendDataSaveFromFieldInstance($field);
+                $this->appendDataSaveFromFieldInstance1($field);
+                $this->treeSlug = [];
             });
-
         $deleteValues = $this->extraValuesExist->diff($this->extraValues)->pluck('id');
         if ($deleteValues->count()) {
             $this->target->extraValues()
@@ -120,6 +122,9 @@ class SaveExtraFieldValueForTargetAction
                         $value = $this->target->handleSaveExtraValueIsFile(Arr::get($groupValues, $field->slug), $this->getCurrentValueInstance($field, $row));
                     } else {
                         $value = \HXM\ExtraField\ExtraField::getValueProcessionInstance($this->target->getMorphClass())->setValue(Arr::get($groupValues, $field->slug), $field->type, $field);
+                        if ($this->extraFieldTypeEnumInstance::inputRequestIsMultiple($field->type)) {
+                            $value = json_encode($value);
+                        }
                     }
                     $dataSave = [
                         'extraFieldId' => $field->id,
@@ -161,22 +166,92 @@ class SaveExtraFieldValueForTargetAction
         }
     }
 
+    protected function appendDataSaveFromFieldInstance1(ExtraField $field): void
+    {
+        if ($this->extraFieldTypeEnumInstance::requireHasFields($field->type)) {
+            $this->treeSlug[] = $field->slug;
+            if ($this->extraFieldTypeEnumInstance::inputRequestIsMultiple($field->type)) {
+                $tempTreeSlug = $this->treeSlug;
+                foreach ($this->input($this->treeSlug) as $key => $value) {
+                    $field->fields->each(function($childField) use ($tempTreeSlug, $key) {
+                        $this->treeSlug = $tempTreeSlug;
+                        $this->treeSlug[] = $key;
+                        $this->currorRow = $key;
+                        $this->appendDataSaveFromFieldInstance1($childField);
+                    });
+                }
+            } else {
+                $tempTreeSlug = $this->treeSlug;
+                $field->fields->each(function($childField) use ($tempTreeSlug) {
+                    $this->treeSlug = $tempTreeSlug;
+                    $this->appendDataSaveFromFieldInstance1($childField);
+                });
+            }
+            return;
+
+        } else {
+            if($this->extraFieldTypeEnumInstance::inputRequestIsMultiple($field->type)) {
+                $this->treeSlug[] = $field->slug;
+                $tempTreeSlug = $this->treeSlug;
+                foreach ($this->input($this->treeSlug) as $row => $value) {
+                    $this->treeSlug = $tempTreeSlug;
+                    $this->treeSlug[] = $row;
+                    $this->currorRow = $row;
+                    $this->save($field);
+                }
+                return;
+            } else {
+                $this->treeSlug[] = $field->slug;
+            }
+        }
+        $this->save($field);
+    }
+
+    protected function save(ExtraField $field)
+    {
+        if ($this->extraFieldTypeEnumInstance::inputRequestHasFile($field->type)) {
+            $value = $this->target->handleSaveExtraValueIsFile($this->input($this->treeSlug), $this->getCurrentValueInstance($field));
+        }  else {
+            $value = \HXM\ExtraField\ExtraField::getValueProcessionInstance($this->target->getMorphClass())->setValue($this->input($this->treeSlug), $field->type, $field);
+        }
+        $dataSave = [
+            'extraFieldId' => $field->id,
+            'value' => $value,
+            'row' => $this->currorRow,
+            'slug' => $this->getTreeSlug()
+        ];
+
+        $this->storeValueToDatabase($field, $dataSave);
+        $this->treeSlug = [];
+        $this->currorRow = null;
+    }
+
+    protected function getTreeSlug(array $trees = null)
+    {
+        return implode('.', $trees ?? $this->treeSlug);
+    }
+
+    protected function input($key)
+    {
+        if (is_array($key)) {
+            $key = $this->getTreeSlug($key);
+        }
+        return Arr::get($this->dataInput, $key);
+    }
     /**
      * @return Model|null
      */
-    protected function getCurrentValueInstance($field, $row = null)
+    protected function getCurrentValueInstance($field)
     {
         return $this->extraValuesExist
-            ->when(!is_null($row), function(Collection $dt) use ($row){
-                return $dt->where('row', $row);
-            })
+            ->where('slug', $this->getTreeSlug())
             ->firstWhere('extraFieldId', $field->id);
     }
 
     protected function storeValueToDatabase($field, $dataSave): void
     {
         /** @var Model $valueInstance */
-        $valueInstance = $this->getCurrentValueInstance($field, $dataSave['row'] ?? null);
+        $valueInstance = $this->getCurrentValueInstance($field);
 
         if ($valueInstance) {
 

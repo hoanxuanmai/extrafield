@@ -6,6 +6,7 @@
 
 namespace HXM\ExtraField\Console;
 
+use HXM\ExtraField\Contracts\CanAccessExtraFieldValueInterface;
 use HXM\ExtraField\Contracts\CanMakeExtraFieldInterface;
 use HXM\ExtraField\Exceptions\CanNotMakeExtraFieldException;
 use HXM\ExtraField\ExtraField;
@@ -28,6 +29,10 @@ class ExtraFieldInstallCommand extends Command
 
     protected $signature = 'extrafield:install';
 
+    protected array $currentConfigTables = [];
+
+    private ?Model $currentInstance;
+
     public function __construct()
     {
         parent::__construct();
@@ -36,61 +41,60 @@ class ExtraFieldInstallCommand extends Command
 
     function handle()
     {
-        tenancy()->runForMultiple([], function(){
-            $privates = config('extra_field.privates', []);
-            $installs = [];
-            foreach ($privates as $target => $tables) {
-                if (is_string($tables)) {
-                    $target = $tables;
-                    $tables = [];
-                }
-                /** @var Model $targetInstance */
-                $targetInstance = app()->make($target);
-                if ($targetInstance instanceof CanMakeExtraFieldInterface) {
-                    $prefix = Str::singular($targetInstance->getTable()).'_';
-                    $installs[] = $this->checkInstalled($prefix, $tables);
-                } else {
-                    throw new CanNotMakeExtraFieldException($target);
-                }
+        $privates = config('extra_field.privates', []);
+        $installs = [];
+        foreach ($privates as $target => $tables) {
+            if (is_string($tables)) {
+                $target = $tables;
+                $tables = [];
             }
-            if ($this->errors->isNotEmpty()) {
-                foreach ($this->errors->getMessages() as $message) {
-                    $this->error(implode(', ', Arr::wrap($message)));
-                }
-                exit();
-            }
+            /** @var Model $targetInstance */
+            $targetInstance = app()->make($target);
 
-
-            foreach ($installs as $tables) {
-                $this->createTables($tables);
+            if ($targetInstance instanceof CanAccessExtraFieldValueInterface) {
+                $this->currentInstance = $targetInstance;
+                $this->currentConfigTables = ExtraField::getPriviteTables($target);
+//                dd(ExtraField::getPriviteTables($target), ExtraField::getPriviteTables(get_class($this->currentInstance)));
+                $installs[] = $this->checkInstalled($tables);
+            } else {
+                throw new CanNotMakeExtraFieldException($target);
             }
-        });
+        }
+        if ($this->errors->isNotEmpty()) {
+            foreach ($this->errors->getMessages() as $message) {
+                $this->error(implode(', ', Arr::wrap($message)));
+            }
+            exit();
+        }
+
+        foreach ($installs as $tables) {
+            $this->createTables($tables);
+        }
     }
 
-    private function checkInstalled(string $prefix, array $tables)
+    private function checkInstalled(array $tables)
     {
-        $tables = array_merge([
-            'fields' => 'extra_fields',
-            'options' => 'extra_field_options',
-            'values' => 'extra_field_values',
-        ], $tables);
-
         return [
-            'fields' => $this->checkHasFieldsTable($prefix.$tables['fields']) ?  null : $prefix.$tables['fields'],
-            'options' => $this->checkHasOptionsTable($prefix.$tables['options']) ? null : $prefix.$tables['options'],
-            'values' => $this->checkHasValuesTable($prefix.$tables['values']) ? null : $prefix.$tables['values'],
+            'fields' => $this->checkHasFieldsTable(null),
+            'options' => $this->checkHasOptionsTable(null),
+            'values' => $this->checkHasValuesTable(null),
         ];
     }
 
     private function createTables($tables)
     {
-        !empty($tables['fields']) && $this->createFieldsTable($tables['fields']);
-        !empty($tables['options']) && $this->createOptionsTable($tables['options'], $tables['fields']);
-        !empty($tables['values']) && $this->createValuesTable($tables['values'], $tables['fields']);
+        empty($tables['fields']['exist']) && $this->createFieldsTable($tables['fields']['table']);
+        empty($tables['options']['exist']) && $this->createOptionsTable($tables['options']['table'], $tables['fields']['table']);
+        empty($tables['values']['exist']) && $this->createValuesTable($tables['values']['table'], $tables['fields']['table']);
     }
 
-    private function checkHasFieldsTable($table)
+    private function checkHasFieldsTable($prefix)
     {
+        $table = $prefix.$this->currentConfigTables['fields'];
+        $data = [
+            'table' => $table,
+            'exist' => false,
+        ];
         if (Schema::hasTable($table)) {
             if (!Schema::hasColumns($table, [
                 'target_type',
@@ -108,17 +112,17 @@ class ExtraFieldInstallCommand extends Command
             ])) {
                 $this->errors->add($table, "the $table was existed!");
             }
-            return true;
+            $data['exist'] = true;
         }
-        return false;
+        return $data;
     }
     private function createFieldsTable($tableName)
     {
         $this->info('creating '.$tableName);
-        Schema::create($tableName, function (Blueprint $table) {
+        Schema::create($tableName, function (Blueprint $table) use ($tableName) {
             $table->id();
             $table->morphs('target');
-            $table->bigInteger('parentId')->default(0);
+            $table->unsignedBigInteger('parentId')->nullable();
             $table->string('parentInput')->nullable();
             $table->string('slug');
             $table->string('label');
@@ -130,12 +134,21 @@ class ExtraFieldInstallCommand extends Command
             $table->json('settings')->nullable();
             $table->timestamps();
             $table->softDeletes();
-            $table->unique(['target_id', 'parentId', 'slug']);
+            $table->unique(['target_id', 'parentId', 'slug'], 'target_id_parentId_slug_unique');
+            $table->foreign('parentId')
+                ->on($tableName)
+                ->references('id')
+                ->cascadeOnDelete();
         });
     }
 
-    private function checkHasOptionsTable($table)
+    private function checkHasOptionsTable($prefix)
     {
+        $table = $prefix.$this->currentConfigTables['options'];
+        $data = [
+            'table' => $table,
+            'exist' => false,
+        ];
         if (Schema::hasTable($table)) {
             if (!Schema::hasColumns($table, [
                 'extraFieldId',
@@ -144,9 +157,9 @@ class ExtraFieldInstallCommand extends Command
             ])) {
                 $this->errors->add($table, "the $table was existed!");
             }
-            return true;
+            $data['exist'] = true;
         }
-        return false;
+        return $data;
     }
     private function createOptionsTable($tableName, $fieldsTable)
     {
@@ -167,17 +180,22 @@ class ExtraFieldInstallCommand extends Command
         });
     }
 
-    private function checkHasValuesTable($table)
+    private function checkHasValuesTable($prefix)
     {
+        $table = $prefix.$this->currentConfigTables['values'];
+        $data = [
+            'table' => $table,
+            'exist' => false,
+        ];
         if (Schema::hasTable($table)) {
             if (!Schema::hasColumns($table, [
-                'target_type', 'target_id', 'extraFieldId', 'value', 'row'
+                'target_type', 'target_id', 'extraFieldId','slug', 'value', 'row'
             ])) {
                 $this->errors->add($table, "the $table was existed!");
             }
-            return true;
+            $data['exist'] = true;
         }
-        return false;
+        return $data;
     }
     private function createValuesTable($tableName, $fieldsTable)
     {
@@ -186,6 +204,7 @@ class ExtraFieldInstallCommand extends Command
             $table->uuid('id');
             $table->morphs('target');
             $table->bigInteger('extraFieldId')->unsigned();
+            $table->string('slug')->nullable();
             $table->text('value')->nullable();
             $table->tinyInteger('row')->nullable();
             $table->foreign('extraFieldId')

@@ -29,7 +29,7 @@ class ExtraFieldService
         if (! (static::$constructFieldsByTarget[$key] ?? null)) {
             static::$constructFieldsByTarget[$key] = static::getFromCache('getConstructFieldsByTypeInstance'.$key, function() use ($hasExtraField, $targetType, $targetId) {
                 return static::buildQueryToGetList($hasExtraField, $targetType, $targetId)
-                    ->where('parentId', 0)
+                    ->whereNull('parentId')
                     ->get();
             });
         }

@@ -15,6 +15,8 @@ class ExtraFiledServiceProvider extends ServiceProvider
 
     function boot()
     {
+        $config = config('extra_field');
+
         $this->publishes([
             __DIR__ . '/../config/extra_field.php' => config_path('extra_field.php')
         ], 'extra_field:config');
@@ -23,12 +25,19 @@ class ExtraFiledServiceProvider extends ServiceProvider
             __DIR__ . '/../database/migrations' => database_path('migrations')
         ], 'extra_field:migration');
 
-        if (!config('extra_field.cache', true)) {
+        if (! $config['cache'] ?? true) {
             ExtraFieldService::$useCache = false;
         }
         if (!ExtraField::$ignoreMigration) {
             $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         }
+
+        $tables = $config['tables'] ?? [];
+
+        !empty($tables['values']) && ExtraField::$tableValues = $tables['values'];
+        !empty($tables['fields']) && ExtraField::$tableFields = $tables['fields'];
+        !empty($tables['options']) && ExtraField::$tableOptions = $tables['options'];
+
         $this->commands([ExtraFieldInstallCommand::class]);
     }
 

@@ -10,6 +10,6 @@ class CanNotMakeExtraFieldException extends \Exception
 {
     public function __construct(string $className = "", int $code = 0, ?Throwable $previous = null)
     {
-        parent::__construct("The $className must be a instance of CanMakeExtraFieldInterface", $code, $previous);
+        parent::__construct("The $className must be a instance of CanAccessExtraFieldValueInterface", $code, $previous);
     }
 }

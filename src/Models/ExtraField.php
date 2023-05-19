@@ -8,6 +8,7 @@ namespace HXM\ExtraField\Models;
 
 use HXM\ExtraField\Contracts\ExtraFieldTypeEnumInterface;
 use HXM\ExtraField\Enums\ExtraFieldTypeEnums;
+use HXM\ExtraField\Services\ExtraFieldService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -37,7 +38,15 @@ class ExtraField extends Model
         'hidden' => 'boolean',
     ];
 
+    protected $appends =  ['inputName', 'title'];
+
     public static $loadMissingChildren = false;
+
+    public function __construct(array $attributes = [])
+    {
+        $this->table = \HXM\ExtraField\ExtraField::$tableFields;
+        parent::__construct($attributes);
+    }
 
     function newCollection(array $models = [])
     {
@@ -48,8 +57,6 @@ class ExtraField extends Model
         return parent::newCollection($models);
     }
 
-    protected $appends =  ['inputName', 'title'];
-
     function target(): \Illuminate\Database\Eloquent\Relations\MorphTo
     {
         return $this->morphTo();
@@ -57,12 +64,27 @@ class ExtraField extends Model
 
     function fields(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
-        return $this->hasMany(static::class, 'parentId');
+        $instance = $this->newInstance();
+
+        $foreignKey = 'parentId';
+
+        return $this->newHasMany(
+            $instance->newQuery(), $this, $instance->getTable().'.'.$foreignKey, $this->getKeyName()
+        );
     }
 
     function options(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
-        return $this->hasMany(ExtraFieldOption::class, 'extraFieldId');
+        $table = Str::replace(\HXM\ExtraField\ExtraField::$tableFields, \HXM\ExtraField\ExtraField::$tableOptions, $this->getTable());
+        /** @var ExtraFieldOption $instance */
+        $instance = $this->newRelatedInstance(\HXM\ExtraField\ExtraField::$modelOption);
+        $instance->setTable($table);
+
+        $foreignKey = 'extraFieldId';
+
+        return $this->newHasMany(
+            $instance->newQuery(), $this, $table.'.extraFieldId', $this->getKeyName()
+        );
     }
 
     function getInputNameAttribute()
