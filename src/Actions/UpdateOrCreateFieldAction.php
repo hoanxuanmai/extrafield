@@ -291,7 +291,7 @@ class UpdateOrCreateFieldAction
             ]);
         } else {
             $this->merge([
-                'parentId' => 0
+                'parentId' => null
             ]);
         }
 

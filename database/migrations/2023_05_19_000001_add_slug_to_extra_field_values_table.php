@@ -24,14 +24,14 @@ return new class extends Migration
                 $table->string('slug')->nullable()->after('extraFieldId');
             });
             Schema::table(ExtraField::$tableFields, function(Blueprint $table) {
-
-                $table->unsignedBigInteger('parentId')->nullable()->change();
-                \Illuminate\Support\Facades\DB::table(ExtraField::$tableFields)
-                    ->where('parentId', 0)
-                    ->update([
-                        'parentId' => null
-                    ]);
+                $table->unsignedBigInteger('parentId')->nullable()->default(null)->change();
             });
+
+            \Illuminate\Support\Facades\DB::table(ExtraField::$tableFields)
+                ->where('parentId', 0)
+                ->update([
+                    'parentId' => null
+                ]);
             $values = app(ExtraField::$modelValue)->get();
             $fieldIds = $values->pluck('extraFieldId');
             $fields = app(ExtraField::$modelField)->whereIn('id', $fieldIds)->get()->mapWithKeys(function ($dt) {
