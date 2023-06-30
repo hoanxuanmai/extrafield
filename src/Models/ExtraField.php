@@ -84,7 +84,7 @@ class ExtraField extends Model
 
         return $this->newHasMany(
             $instance->newQuery(), $this, $table.'.extraFieldId', $this->getKeyName()
-        );
+        )->orderBy('value');
     }
 
     function getInputNameAttribute()
